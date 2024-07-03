@@ -1,6 +1,6 @@
 import requests
 
-def create_repo_from_template(token:str, template_owner:str, template_repo:str, new_owner:str, new_repo:str):
+def create_repo_from_temp(token:str, template_owner:str, template_repo:str, new_owner:str, new_repo:str):
     """
         Create a Github repo from a provided template.
 
@@ -48,7 +48,7 @@ def create_repo_from_template(token:str, template_owner:str, template_repo:str, 
     # verify result of api call
     if response.status_code == 201:
         print("Repository created successfully!")
-        print(response.json())
+        # print(response.json())
     else:
         print(f"Failed to create repository: {response.status_code}")
         print(response.json())
