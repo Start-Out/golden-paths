@@ -9,9 +9,15 @@ EXPRESS_TEMPLATE_NAME = os.getenv("EXPRESS_TEMPLATE_NAME", None)
 NEW_EXPRESS_OWNER = os.getenv("NEW_EXPRESS_OWNER", None)  # TODO: Tightly couple to $GITHUB_TOKEN
 NEW_EXPRESS_NAME = os.getenv("NEW_EXPRESS_NAME", None)
 
+
+def initialize_path():
+    # initialize_postgresql()
+    initialize_express()
+    # initialize_react()
+
 def initialize_express():
     print("Initializing Express...")
-    # TODO: Assert that proper env varibles are in place
+    # TODO: Assert that proper env variables are in place
     gh_r.create_repo_from_temp(GITHUB_TOKEN, TEMPLATE_OWNER, EXPRESS_TEMPLATE_NAME, NEW_EXPRESS_OWNER, NEW_EXPRESS_NAME)
     # Update $NEW_PATH_ROOT
 
@@ -26,7 +32,7 @@ def main(path: str):
         # - discover frameworks that need initializing
         # - init them in necessary order
         print(f"Initializing {path}")
-        initialize_express()
+        initialize_path()
     else:
         print("Path not found...")
 

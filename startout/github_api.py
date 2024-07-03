@@ -7,14 +7,13 @@ def create_repo_from_temp(token:str, template_owner:str, template_repo:str, new_
         Endpoint Docs: https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#create-a-repository-using-a-template
 
         Parameters:
-        token (str): A Github auth token.
-        template_owner (str): The owner of the template repo.
-        template_repo (str): The name of the template repo.
-        new_owner (str): The owner of the new repo.
-        new_repo (str): The name of the new repo.
+        :param token: A Github auth token.
+        :param template_owner: The owner of the template repo.
+        :param template_repo: The name of the template repo.
+        :param new_owner: The owner of the new repo.
+        :param new_repo: The name of the new repo.
 
         Returns:
-
 
         Raises:
 
