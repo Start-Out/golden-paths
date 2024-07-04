@@ -2,7 +2,6 @@ import os
 import subprocess
 
 
-# Init pnpm
 def init_framework(init_script: str, multiline_init_script: list[str] = None):
     # Make sure you're in the right dir
     _path = os.environ.get("NEW_PATH_ROOT")  # TODO Validate path
@@ -15,6 +14,3 @@ def init_framework(init_script: str, multiline_init_script: list[str] = None):
         pass
 
     # Make sure _output succeeded, raise any necessary exceptions BUT make sure they're handled
-
-
-# Init PostgreSQL

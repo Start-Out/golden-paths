@@ -7,7 +7,7 @@ from typing import Optional
 import typer
 from typing_extensions import Annotated
 
-import startout.github_api as gh_r  # temp name
+import startout.github_api as gh_api
 
 # Initialize the typer CLI
 startout_paths_app = typer.Typer(name="startout-paths")
@@ -141,17 +141,15 @@ def initialize_path_instance(
             except (IndexError, TypeError):
                 choice = None
 
-    initialized_path = initialize_repo(
+    initialized_repo_path = initialize_repo(
         template_owner, template_name, new_repo_owner, new_repo_name, public
     )
 
-    if not initialized_path:
+    if not initialized_repo_path:
         print("Failed to initialize new Path, exiting now.", file=sys.stderr)
     else:
         pass
-        # initialize_postgresql()
-        # initialize_express()
-        # initialize_react()
+        # initialize frameworks using Starterfile
 
 
 def initialize_repo(
@@ -178,7 +176,7 @@ def initialize_repo(
     if template_name is None:
         template_name = input("\nWhat is the name of the Path template?: ")
 
-    result = gh_r.create_repo_from_temp(
+    result = gh_api.create_repo_from_temp(
         new_repo_owner, new_repo_name, f"{template_owner}/{template_name}", public
     )
     # Update $NEW_PATH_ROOT
@@ -190,21 +188,6 @@ def initialize_repo(
         os.environ["NEW_PATH_ROOT"] = result
 
     return result
-
-
-# def main(path: str):
-#     print("Welcome to GoldenPaths!")
-#
-#     # Determine what path to create
-#     #  AND where, store the created path's root in an ENV variable $NEW_PATH_ROOT
-#     if path == "react-express-postgresql":
-#         # Determine how to create that path
-#         # - discover frameworks that need initializing
-#         # - init them in necessary order
-#         print(f"Initializing {path}")
-#         initialize_path_instance()
-#     else:
-#         print("Path not found...")
 
 
 if __name__ == "__main__":
