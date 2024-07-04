@@ -1,7 +1,5 @@
-import requests
-import os
-import subprocess
 import platform
+import subprocess
 
 
 def create_repo_from_temp(owner, repo_name, template):
@@ -12,10 +10,18 @@ def create_repo_from_temp(owner, repo_name, template):
     :param repo_name: The name of the new repo.
     :param template: The name of the template repo.
     """
-    cmd = ['gh', 'repo', 'create', f'{owner}/{repo_name}', '--public?', '--clone', f'--template={template}']
+    cmd = [
+        "gh",
+        "repo",
+        "create",
+        f"{owner}/{repo_name}",
+        "--public?",
+        "--clone",
+        f"--template={template}",
+    ]
 
-    if platform.system() == 'Windows':
-        cmd = ['cmd', '/c'] + cmd
+    if platform.system() == "Windows":
+        cmd = ["cmd", "/c"] + cmd
 
         print("cmd: ", cmd)
 

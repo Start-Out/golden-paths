@@ -1,12 +1,16 @@
-import typer
 import os
-import startout.github_api as gh_r #temp name
 
-#Pull Env Varibles (Not sure if this is the approach we are wanting)
+import typer
+
+import startout.github_api as gh_r  # temp name
+
+# Pull Env Variables (Not sure if this is the approach we are wanting)
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", None)
 TEMPLATE_OWNER = os.getenv("TEMPLATE_OWNER", None)
 EXPRESS_TEMPLATE_NAME = os.getenv("EXPRESS_TEMPLATE_NAME", None)
-NEW_EXPRESS_OWNER = os.getenv("NEW_EXPRESS_OWNER", None)  # TODO: Tightly couple to $GITHUB_TOKEN
+NEW_EXPRESS_OWNER = os.getenv(
+    "NEW_EXPRESS_OWNER", None
+)  # TODO: Tightly couple to $GITHUB_TOKEN
 NEW_EXPRESS_NAME = os.getenv("NEW_EXPRESS_NAME", None)
 
 
@@ -15,10 +19,13 @@ def initialize_path():
     initialize_express()
     # initialize_react()
 
+
 def initialize_express():
     print("Initializing Express...")
     # TODO: Assert that proper env variables are in place
-    gh_r.create_repo_from_temp(NEW_EXPRESS_OWNER, NEW_EXPRESS_NAME, f'{TEMPLATE_OWNER}/{EXPRESS_TEMPLATE_NAME}')
+    gh_r.create_repo_from_temp(
+        NEW_EXPRESS_OWNER, NEW_EXPRESS_NAME, f"{TEMPLATE_OWNER}/{EXPRESS_TEMPLATE_NAME}"
+    )
     # Update $NEW_PATH_ROOT
 
 

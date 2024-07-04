@@ -16,4 +16,5 @@ def init_framework(init_script: str, multiline_init_script: list[str] = None):
 
     # Make sure _output succeeded, raise any necessary exceptions BUT make sure they're handled
 
+
 # Init PostgreSQL
