@@ -18,7 +18,7 @@ def initialize_path():
 def initialize_express():
     print("Initializing Express...")
     # TODO: Assert that proper env variables are in place
-    gh_r.create_repo_from_temp(GITHUB_TOKEN, TEMPLATE_OWNER, EXPRESS_TEMPLATE_NAME, NEW_EXPRESS_OWNER, NEW_EXPRESS_NAME)
+    gh_r.create_repo_from_temp(NEW_EXPRESS_OWNER, NEW_EXPRESS_NAME, f'{TEMPLATE_OWNER}/{EXPRESS_TEMPLATE_NAME}')
     # Update $NEW_PATH_ROOT
 
 
