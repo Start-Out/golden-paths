@@ -26,6 +26,7 @@ def initialize_path_instance(
         new_repo_name:  Annotated[str, typer.Argument(help="Name of new repo created from Path")],
         new_repo_owner: Annotated[Optional[str], typer.Argument(help="User or Organization that will own the new repo "
                                                                      "(leave blank to assign interactively)")] = "",
+        public:  Annotated[bool, typer.Option("--public/--private", help="Set visibility of the new repo")] = True,
 ):
     # fmt: on
 
@@ -141,7 +142,7 @@ def initialize_path_instance(
                 choice = None
 
     initialized_path = initialize_repo(
-        template_owner, template_name, new_repo_owner, new_repo_name
+        template_owner, template_name, new_repo_owner, new_repo_name, public
     )
 
     if not initialized_path:
@@ -154,7 +155,7 @@ def initialize_path_instance(
 
 
 def initialize_repo(
-    template_owner: str, template_name: str, new_repo_owner: str, new_repo_name: str
+    template_owner: str, template_name: str, new_repo_owner: str, new_repo_name: str, public: bool = True
 ):
     print("Fetching and cloning Path template...")
 
@@ -178,7 +179,7 @@ def initialize_repo(
         template_name = input("\nWhat is the name of the Path template?: ")
 
     result = gh_r.create_repo_from_temp(
-        new_repo_owner, new_repo_name, f"{template_owner}/{template_name}"
+        new_repo_owner, new_repo_name, f"{template_owner}/{template_name}", public
     )
     # Update $NEW_PATH_ROOT
 
