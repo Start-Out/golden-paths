@@ -70,76 +70,7 @@ def initialize_path_instance(
 
     # If the new owner was not specified when this function was called, the user wants to define it interactively.
     if len(new_repo_owner) == 0:
-        # Collect valid options for the user using `gh auth status` and `gh org list`
-
-        # Get the current username
-        print("Checking `gh auth status`...")
-        result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        valid_owners = []
-
-        # Exit if gh auth fails, necessary for the rest of the process
-        if result.returncode != 0:
-            print(result.stderr.decode(), file=sys.stderr)
-            print("Unable to authenticate with GitHub, please ensure you have completed `gh auth`", file=sys.stderr)
-            sys.exit(1)
-
-        # Parse username from gh auth status
-        feedback = result.stdout.decode()
-        username = re.findall(r"(?<=account )(.*)(?= \(keyring\))", feedback)
-
-        if len(username) != 1:
-            print("Problem parsing username from `gh auth status`, output was:", file=sys.stderr)
-            print(feedback, file=sys.stderr)
-            sys.exit(1)
-
-        # If username is parsed, add to possible owners
-        valid_owners.append(username[0])
-
-        # Get authorized orgs via gh org list
-        print("Checking `gh org list`...")
-        result = subprocess.run(['gh', 'org', 'list'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-        # Do not exit, but warn the user that this check failed
-        if result.returncode != 0:
-            print(result.stderr.decode(), file=sys.stderr)
-            print("Unable to collect valid orgs, please check `gh auth status`", file=sys.stderr)
-        else:
-            # Parse orgs from command
-            feedback = result.stdout.decode()
-            lines = feedback.splitlines()
-
-            valid_owners.extend(lines)
-
-        # All potential new owners are collected, prompt user to choose one
-        print("Please choose from the following list for the new repo owner:")
-
-        i = 0
-        for owner in valid_owners:
-            print(f"[{i}] - {owner}")
-            i += 1
-
-        choice = None
-        flag = False
-        while choice is None:
-            if flag:
-                # Print the invalid feedback every time after the first ask
-                print("Invalid choice", file=sys.stderr)
-            flag = True
-
-            choice = input("> ")
-
-            try:
-                choice = int(choice)
-            except ValueError:
-                choice = None
-
-            try:
-                if choice > 0:
-                    new_repo_owner = valid_owners[choice]
-                else:
-                    choice = None
-            except (IndexError, TypeError):
-                choice = None
+        new_repo_owner = new_repo_owner_interactive()
 
     initialized_repo_path = initialize_repo(
         template_owner, template_name, new_repo_owner, new_repo_name, public
@@ -150,6 +81,79 @@ def initialize_path_instance(
     else:
         pass
         # initialize frameworks using Starterfile
+
+
+def new_repo_owner_interactive() -> str:
+    # Collect valid options for the user using `gh auth status` and `gh org list`
+
+    # Get the current username
+    print("Checking `gh auth status`...")
+    result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    valid_owners = []
+
+    # Exit if gh auth fails, necessary for the rest of the process
+    if result.returncode != 0:
+        print(result.stderr.decode(), file=sys.stderr)
+        print("Unable to authenticate with GitHub, please ensure you have completed `gh auth`", file=sys.stderr)
+        sys.exit(1)
+
+    # Parse username from gh auth status
+    feedback = result.stdout.decode()
+    username = re.findall(r"(?<=account )(.*)(?= \(keyring\))", feedback)
+
+    if len(username) != 1:
+        print("Problem parsing username from `gh auth status`, output was:", file=sys.stderr)
+        print(feedback, file=sys.stderr)
+        sys.exit(1)
+
+    # If username is parsed, add to possible owners
+    valid_owners.append(username[0])
+
+    # Get authorized orgs via gh org list
+    print("Checking `gh org list`...")
+    result = subprocess.run(['gh', 'org', 'list'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    # Do not exit, but warn the user that this check failed
+    if result.returncode != 0:
+        print(result.stderr.decode(), file=sys.stderr)
+        print("Unable to collect valid orgs, please check `gh auth status`", file=sys.stderr)
+    else:
+        # Parse orgs from command
+        feedback = result.stdout.decode()
+        lines = feedback.splitlines()
+
+        valid_owners.extend(lines)
+
+    # All potential new owners are collected, prompt user to choose one
+    print("Please choose from the following list for the new repo owner:")
+
+    i = 0
+    for owner in valid_owners:
+        print(f"[{i}] - {owner}")
+        i += 1
+
+    choice = None
+    flag = False
+    while choice is None:
+        if flag:
+            # Print the invalid feedback every time after the first ask
+            print("Invalid choice", file=sys.stderr)
+        flag = True
+
+        choice = input("> ")
+
+        try:
+            choice = int(choice)
+        except ValueError:
+            choice = None
+
+        try:
+            if choice > 0:
+                return valid_owners[choice]
+            else:
+                choice = None
+        except (IndexError, TypeError):
+            choice = None
 
 
 def initialize_repo(
