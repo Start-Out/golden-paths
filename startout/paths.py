@@ -103,7 +103,7 @@ def new_repo_owner_interactive() -> str:
             print(result.stderr.decode(), file=sys.stderr)
         if result.stdout is not None:
             print(result.stdout.decode(), file=sys.stderr)
-        print("Unable to authenticate with GitHub, please ensure you have completed `gh auth`", file=sys.stderr)
+        print("Unable to authenticate with GitHub, please ensure you have completed `gh auth login`", file=sys.stderr)
         sys.exit(1)
 
     # Parse username from gh auth status
@@ -157,7 +157,7 @@ def new_repo_owner_interactive() -> str:
             choice = None
 
         try:
-            if choice > 0:
+            if choice >= 0:
                 return valid_owners[choice]
             else:
                 choice = None
