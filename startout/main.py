@@ -183,11 +183,11 @@ def initialize_repo(
     result = gh_api.create_repo_from_temp(
         new_repo_owner, new_repo_name, f"{template_owner}/{template_name}", public
     )
-    # Update $NEW_PATH_ROOT
 
     if not result:
         print("Failed to clone Path template.", file=sys.stderr)
     else:
+        # Update path to the project root if successful
         print(f"Cloned new Path to {result}")
         os.environ["NEW_PATH_ROOT"] = result
 
