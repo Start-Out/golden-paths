@@ -88,7 +88,13 @@ def new_repo_owner_interactive() -> str:
 
     # Get the current username
     print("Checking `gh auth status`...")
-    result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    try:
+        result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    except FileNotFoundError as e:
+        print(f"Failed to run `gh auth status`, make sure `gh` is installed!\n\t{e}", file=sys.stderr)
+        sys.exit(1)
+
     valid_owners = []
 
     # Exit if gh auth fails, necessary for the rest of the process
