@@ -1,6 +1,7 @@
 import os.path
 import shlex
 import subprocess
+import sys
 
 
 def create_repo_from_temp(
@@ -31,5 +32,5 @@ def create_repo_from_temp(
         print(result.stdout.decode())
         return os.path.join(os.getcwd(), repo_name)
     else:
-        print(result.stderr.decode())
+        print(result.stderr.decode(), file=sys.stderr)
         return False
