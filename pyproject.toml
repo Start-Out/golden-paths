@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "golden-paths-draft"
+name = "startout"
 version = "0.1.0"
 description = "Draft version of the StartOut CLI'"
 authors = ["Your Name <you@example.com>"]
@@ -16,3 +16,6 @@ black = "^24.4.2"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+startout-paths = "startout.paths:startout_paths_command"

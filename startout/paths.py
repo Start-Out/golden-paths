@@ -99,7 +99,10 @@ def new_repo_owner_interactive() -> str:
 
     # Exit if gh auth fails, necessary for the rest of the process
     if result.returncode != 0:
-        print(result.stderr.decode(), file=sys.stderr)
+        if result.stderr is not None:
+            print(result.stderr.decode(), file=sys.stderr)
+        if result.stdout is not None:
+            print(result.stdout.decode(), file=sys.stderr)
         print("Unable to authenticate with GitHub, please ensure you have completed `gh auth`", file=sys.stderr)
         sys.exit(1)
 
@@ -198,6 +201,10 @@ def initialize_repo(
         os.environ["NEW_PATH_ROOT"] = result
 
     return result
+
+
+def startout_paths_command():
+    typer.run(initialize_path_instance)
 
 
 if __name__ == "__main__":
