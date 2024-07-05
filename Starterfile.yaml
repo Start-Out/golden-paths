@@ -1,0 +1,13 @@
+modules:
+  express:
+    setting: two-hundred
+    tools:
+      eslint:
+      prettier:
+        optional: True
+      todoon:
+    scripts:
+      init: npm install
+  react:
+    scripts:
+      init: npx install
