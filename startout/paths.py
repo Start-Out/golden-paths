@@ -4,6 +4,8 @@ import subprocess
 import sys
 from typing import Optional
 from rich import print
+from rich.progress import Progress, SpinnerColumn, TextColumn
+
 
 import typer
 from typing_extensions import Annotated
@@ -85,54 +87,65 @@ def initialize_path_instance(
 
 
 def new_repo_owner_interactive() -> str:
-    # Collect valid options for the user using `gh auth status` and `gh org list`
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}")) as progress:
 
-    # Get the current username
-    print("[italic]Checking `gh auth status`[/]...")
 
-    try:
-        result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    except FileNotFoundError as e:
-        print(f"Failed to run `gh auth status`, make sure `gh` is installed!\n\t{e}", file=sys.stderr)
-        sys.exit(1)
+        # Collect valid options for the user using `gh auth status` and `gh org list`
 
-    valid_owners = []
+        # Get the current username
+        task1 = progress.add_task(f"Checking `gh auth status`", total=None)
 
-    # Exit if gh auth fails, necessary for the rest of the process
-    if result.returncode != 0:
-        if result.stderr is not None:
-            print(result.stderr.decode(), file=sys.stderr)
-        if result.stdout is not None:
-            print(result.stdout.decode(), file=sys.stderr)
-        print("Unable to authenticate with GitHub, please ensure you have completed `gh auth login`", file=sys.stderr)
-        sys.exit(1)
+        try:
+            result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        except FileNotFoundError as e:
+            print(f"Failed to run `gh auth status`, make sure `gh` is installed!\n\t{e}", file=sys.stderr)
+            sys.exit(1)
 
-    # Parse username from gh auth status
-    feedback = result.stdout.decode()
-    username = re.findall(r"(?<=account )(.*)(?= \(keyring\))", feedback)
+        progress.update(task1, description="Suceess: gh auth status validated", completed=True)
 
-    if len(username) != 1:
-        print("Problem parsing username from `gh auth status`, output was:", file=sys.stderr)
-        print(feedback, file=sys.stderr)
-        sys.exit(1)
+        valid_owners = []
 
-    # If username is parsed, add to possible owners
-    valid_owners.append(username[0])
+        # Exit if gh auth fails, necessary for the rest of the process
+        if result.returncode != 0:
+            if result.stderr is not None:
+                print(result.stderr.decode(), file=sys.stderr)
+            if result.stdout is not None:
+                print(result.stdout.decode(), file=sys.stderr)
+            print("Unable to authenticate with GitHub, please ensure you have completed `gh auth login`", file=sys.stderr)
+            sys.exit(1)
 
-    # Get authorized orgs via gh org list
-    print("[italic]Checking `gh org list`[/]...")
-    result = subprocess.run(['gh', 'org', 'list'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-    # Do not exit, but warn the user that this check failed
-    if result.returncode != 0:
-        print(result.stderr.decode(), file=sys.stderr)
-        print("[bold red]Unable to collect valid orgs, please check `gh auth status`[/]", file=sys.stderr)
-    else:
-        # Parse orgs from command
+        # Parse username from gh auth status
         feedback = result.stdout.decode()
-        lines = feedback.splitlines()
+        username = re.findall(r"(?<=account )(.*)(?= \(keyring\))", feedback)
 
-        valid_owners.extend(lines)
+        if len(username) != 1:
+            print("Problem parsing username from `gh auth status`, output was:", file=sys.stderr)
+            print(feedback, file=sys.stderr)
+            sys.exit(1)
+
+        # If username is parsed, add to possible owners
+        valid_owners.append(username[0])
+
+        # Get authorized orgs via gh org list
+        task2 = progress.add_task(f"Checking `gh org list`", total=None)
+
+
+        result = subprocess.run(['gh', 'org', 'list'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        # Do not exit, but warn the user that this check failed
+        if result.returncode != 0:
+            print(result.stderr.decode(), file=sys.stderr)
+            print("[bold red]Unable to collect valid orgs, please check `gh auth status`[/]", file=sys.stderr)
+            progress.update(task2, description="ERROR: Failed to collect orgs", completed=True)
+
+        else:
+            # Parse orgs from command
+            feedback = result.stdout.decode()
+            lines = feedback.splitlines()
+
+            valid_owners.extend(lines)
+            progress.update(task2, description="Suceess: gh orgs collected", completed=True)
+
 
     # All potential new owners are collected, prompt user to choose one
     print("[bold]Please choose from the following list for the new repo owner[/]:")
@@ -169,8 +182,6 @@ def new_repo_owner_interactive() -> str:
 def initialize_repo(
     template_owner: str, template_name: str, new_repo_owner: str, new_repo_name: str, public: bool = True
 ):
-    print("[italic]Fetching and cloning Path template[/]...")
-
     # If any environment variables are missing, prompt the user for them interactively
 
     # TODO Use some localization scheme for all feedback

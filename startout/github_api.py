@@ -3,6 +3,8 @@ import shlex
 import subprocess
 import sys
 from rich import print
+from rich.progress import Progress, SpinnerColumn, TextColumn
+
 
 
 def create_repo_from_temp(
@@ -27,7 +29,15 @@ def create_repo_from_temp(
     else:
         cmd.append("--private")
 
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    result = ''
+
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}")) as progress:
+        task = progress.add_task(f"Fetching and cloning {template}", total=None)
+
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        progress.update(task, description="Done", completed=True)
+
 
     if result.returncode == 0:
         print(f"[green]{result.stdout.decode()}[/]")
