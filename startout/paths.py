@@ -3,6 +3,7 @@ import re
 import subprocess
 import sys
 from typing import Optional
+from rich import print
 
 import typer
 from typing_extensions import Annotated
@@ -53,14 +54,14 @@ def initialize_path_instance(
             template_owner = result
             template_name = template
 
-        print(f"INFO: Using template {template_owner}/{template_name}")
+        print(f"[bold]INFO[/]: Using template {template_owner}/{template_name}")
 
     else:
         print(
-            f"Invalid Path template '{template}', please specify one of the following:\n"
+            f"[bold red]Invalid Path template '{template}', please specify one of the following:[/]\n"
             f"- A fully-formed GitHub repository name (e.g. Owner/Repository)\n"
             f"- A non-path to be defined interactively (e.g. express-react-postgresql)\n"
-            f"  * NOTE: Non-paths will trigger an interactive mode which provides helpful defaults"
+            f"  * [bold]NOTE[/]: Non-paths will trigger an interactive mode which provides helpful defaults"
         )
         sys.exit(1)
 
@@ -87,7 +88,7 @@ def new_repo_owner_interactive() -> str:
     # Collect valid options for the user using `gh auth status` and `gh org list`
 
     # Get the current username
-    print("Checking `gh auth status`...")
+    print("[italic]Checking `gh auth status`[/]...")
 
     try:
         result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -119,13 +120,13 @@ def new_repo_owner_interactive() -> str:
     valid_owners.append(username[0])
 
     # Get authorized orgs via gh org list
-    print("Checking `gh org list`...")
+    print("[italic]Checking `gh org list`[/]...")
     result = subprocess.run(['gh', 'org', 'list'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     # Do not exit, but warn the user that this check failed
     if result.returncode != 0:
         print(result.stderr.decode(), file=sys.stderr)
-        print("Unable to collect valid orgs, please check `gh auth status`", file=sys.stderr)
+        print("[bold red]Unable to collect valid orgs, please check `gh auth status`[/]", file=sys.stderr)
     else:
         # Parse orgs from command
         feedback = result.stdout.decode()
@@ -134,11 +135,11 @@ def new_repo_owner_interactive() -> str:
         valid_owners.extend(lines)
 
     # All potential new owners are collected, prompt user to choose one
-    print("Please choose from the following list for the new repo owner:")
+    print("[bold]Please choose from the following list for the new repo owner[/]:")
 
     i = 0
     for owner in valid_owners:
-        print(f"[{i}] - {owner}")
+        print(f"[{i}] - [green]{owner}[/]")
         i += 1
 
     choice = None
@@ -146,7 +147,7 @@ def new_repo_owner_interactive() -> str:
     while choice is None:
         if flag:
             # Print the invalid feedback every time after the first ask
-            print("Invalid choice", file=sys.stderr)
+            print("[red]Invalid choice[/]", file=sys.stderr)
         flag = True
 
         choice = input("> ")
@@ -168,7 +169,7 @@ def new_repo_owner_interactive() -> str:
 def initialize_repo(
     template_owner: str, template_name: str, new_repo_owner: str, new_repo_name: str, public: bool = True
 ):
-    print("Fetching and cloning Path template...")
+    print("[italic]Fetching and cloning Path template[/]...")
 
     # If any environment variables are missing, prompt the user for them interactively
 
@@ -194,10 +195,10 @@ def initialize_repo(
     )
 
     if not result:
-        print("Failed to clone Path template.", file=sys.stderr)
+        print("[red]Failed to clone Path template.[/]", file=sys.stderr)
     else:
         # Update path to the project root if successful
-        print(f"Cloned new Path to {result}")
+        print(f"[green]Cloned new Path to [bold]{result}[/][/]")
         os.environ["NEW_PATH_ROOT"] = result
 
     return result

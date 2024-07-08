@@ -2,6 +2,7 @@ import os.path
 import shlex
 import subprocess
 import sys
+from rich import print
 
 
 def create_repo_from_temp(
@@ -29,8 +30,8 @@ def create_repo_from_temp(
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     if result.returncode == 0:
-        print(result.stdout.decode())
+        print(f"[green]{result.stdout.decode()}[/]")
         return os.path.join(os.getcwd(), repo_name)
     else:
-        print(result.stderr.decode(), file=sys.stderr)
+        print(f"[red]{result.stderr.decode()}[/]", file=sys.stderr)
         return False
