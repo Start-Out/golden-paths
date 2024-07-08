@@ -101,7 +101,7 @@ def new_repo_owner_interactive() -> str:
             print(f"Failed to run `gh auth status`, make sure `gh` is installed!\n\t{e}", file=sys.stderr)
             sys.exit(1)
 
-        progress.update(task1, description="Suceess: gh auth status validated", completed=True)
+        progress.update(task1, description="Success: gh auth status validated", completed=True)
 
         valid_owners = []
 
@@ -144,7 +144,7 @@ def new_repo_owner_interactive() -> str:
             lines = feedback.splitlines()
 
             valid_owners.extend(lines)
-            progress.update(task2, description="Suceess: gh orgs collected", completed=True)
+            progress.update(task2, description="Success: gh orgs collected", completed=True)
 
 
     # All potential new owners are collected, prompt user to choose one
