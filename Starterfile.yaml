@@ -1,13 +1,13 @@
+tools:
+  npm:
+    optional: False
+    script: scoop install npm || brew install npm || sudo apt-get npm
+
 modules:
-  express:
-    setting: two-hundred
-    tools:
-      eslint:
-      prettier:
-        optional: True
-      todoon:
+  path.module-express:
+    name: express
+    source:
+      git: git@github.com:Start-Out/path.module-express.git
     scripts:
-      init: npm install
-  react:
-    scripts:
-      init: npx install
+      init: cd ./express && npm install
+

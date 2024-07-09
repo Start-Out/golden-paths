@@ -8,6 +8,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.11"
 typer = "^0.12.3"
+schema = "^0.7.7"
+pyyaml = "^6.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
