@@ -10,4 +10,12 @@ modules:
       git: git@github.com:Start-Out/path.module-express.git
     scripts:
       init: cd ./express && npm install
+  path.module-react:
+    name: react
+    source:
+      curl: https://raw.githubusercontent.com/Start-Out/path.module-react/main/setup_react.sh
+    scripts:
+      init: cd ./my-app && npm install
+      start: cd ./my-app && npm start
+
 
