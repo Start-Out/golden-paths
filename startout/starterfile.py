@@ -44,6 +44,9 @@ class Module:
 
         return code == 0
 
+    def destroy(self):
+        print(f"Oops! {self.name} doesn't know how to destroy itself!")
+
 
 class GitModule(Module):
     def initialize(self):
@@ -53,8 +56,10 @@ class GitModule(Module):
 
 class CurlModule(Module):
     def initialize(self):
-        print(f"Going to download and run this script: {self.source}")
-        return True
+        # print(f"Going to download and run this script: {self.source}")
+        # return True
+        print(f"Going to pretend like {self.name} failed to initialize!")
+        return False
 
 
 class Starter:
@@ -68,7 +73,7 @@ class Starter:
     def __init__(self, modules: list[Module]):
         self.modules = modules
 
-    def up(self):
+    def up(self, teardown_on_failure=True):
         if len(self.modules) == 0:
             print("Nothing to do.")
             return False
@@ -82,6 +87,14 @@ class Starter:
 
         if len(failed_modules) > 0:
             print("Failed modules:", failed_modules, file=sys.stderr)
+
+            if teardown_on_failure:
+                succeeded_modules = [module for module in self.modules if module.name not in failed_modules]
+                print("Rolling back other modules:", [module.name for module in succeeded_modules], file=sys.stderr)
+
+                for module in succeeded_modules:
+                    module.destroy()
+
             return False
 
         return True
