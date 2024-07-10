@@ -23,6 +23,8 @@ class Module:
     def __init__(self, name: str, source: str, scripts: dict[str, str]):
         if "init" not in scripts.keys():
             raise TypeError(f"No 'init' script defined for module \"{name}\". Failed to create Module.")
+        if "destroy" not in scripts.keys():
+            raise TypeError(f"No 'destroy' script defined for module \"{name}\". Failed to create Module.")
 
         self.name = name
         self.source = source
@@ -45,7 +47,10 @@ class Module:
         return code == 0
 
     def destroy(self):
-        print(f"Oops! {self.name} doesn't know how to destroy itself!")
+        msg, code = self.run("destroy")
+        print(msg)
+
+        return code == 0
 
 
 class GitModule(Module):
@@ -93,7 +98,10 @@ class Starter:
                 print("Rolling back other modules:", [module.name for module in succeeded_modules], file=sys.stderr)
 
                 for module in succeeded_modules:
-                    module.destroy()
+                    destroyed = module.destroy()
+                    if not destroyed:
+                        # TODO handle failure to destroy better
+                        print(f"FATAL: Failed to destroy module \"{module.name}\"", file=sys.stderr)
 
             return False
 

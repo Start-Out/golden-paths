@@ -10,6 +10,7 @@ modules:
       git: git@github.com:Start-Out/path.module-express.git
     scripts:
       init: cd ./express && npm install
+      destroy: rm -rf ./express
   path.module-react:
     name: react
     source:
@@ -17,5 +18,6 @@ modules:
     scripts:
       init: cd ./my-app && npm install
       start: cd ./my-app && npm start
+      destroy: rm -rf ./my-app
 
 
