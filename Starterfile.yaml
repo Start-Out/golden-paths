@@ -1,23 +1,56 @@
+# Looks at the same level as this Starterfile for files
+env_file:
+  - .env
+  - prod.env
+
 tools:
-  npm:
-    optional: False
-    script: scoop install npm || brew install npm || sudo apt-get npm
+  nodejs:
+#    optional: False    # Do not need to specify non-optional, defaults to required
+    scripts:
+      windows:
+        init: scoop install nodejs
+        destroy: scoop uninstall nodejs
+      mac:
+        init: brew install node
+        destroy: brew uninstall node
+      linux:
+        init: sudo apt install npm
+        destroy: sudo apt remove npm
+  pnpm:
+    depends_on: nodejs
+    scripts:
+      init: npm install -g pnpm
+      destroy: npm uninstall -g pnpm
 
 modules:
-  path.module-express:
-    name: express
+  path.module-postgresql:
+    name: postgres
+    dest: postgres-s
     source:
-      git: git@github.com:Start-Out/path.module-express.git
+      script: docker run postgresql -e $POSTGRES_CONTAINER_NAME -e $POSTGRES_PASSWORD
+#    environment:
+#      POSTGRES_CONTAINER_NAME: $POSTGRES_CONTAINER_NAME
+#      POSTGRES_PASSWORD: $POSTGRES_PASSWORD  # SECRET
     scripts:
-      init: cd ./express && npm install
-      destroy: rm -rf ./express
-  path.module-react:
-    name: react
-    source:
-      curl: https://raw.githubusercontent.com/Start-Out/path.module-react/main/setup_react.sh
-    scripts:
-      init: cd ./my-app && npm install
-      start: cd ./my-app && npm start
-      destroy: rm -rf ./my-app
-
+      init: echo hello ${POSTGRES_CONTAINER_NAME}!
+      destroy: echo hi
+#  path.module-express:
+##    depends-on: path.module-postgresql
+#    name: ${EXPRESS_NAME}
+#    dest: express-s
+#    source:
+#      git: git@github.com:Start-Out/path.module-express.git
+#    scripts:
+#      init: cd ./express && npm install  # REQUIRED
+#      destroy: rm -rf ./express  # REQUIRED
+#  path.module-react:
+#    name: react
+#    dest: react-s
+#    source:
+#      curl: https://raw.githubusercontent.com/Start-Out/path.module-react/main/setup_react.sh
+#    scripts:
+##      init: cd ./startout-react-app && npm test  # REQUIRED
+#      init: echo I think that ghosts are ${GHOSTS} # REQUIRED
+#      start: cd ./startout-react-app && npm start
+#      destroy: rm -rf ./startout-react-app  # REQUIRED
 

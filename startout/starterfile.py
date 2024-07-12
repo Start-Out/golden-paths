@@ -1,16 +1,95 @@
+import os
+import platform
+import re
 import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
 from typing import TextIO
-import yaml
 
-from schema import Schema, And, Or
+import requests
+import yaml
+from dotenv import load_dotenv
+from schema import Schema, And, Or, Optional, Use
+
+
+def replace_env(string: str) -> str:
+    pattern = re.compile(r'\$\{(.+?)}')
+    matches = pattern.findall(string)
+
+    for match in matches:
+        env_value = os.getenv(match)
+        if env_value is None:
+            raise ValueError(f'Environment variable {match} not set.')
+        string = string.replace(f'${{{match}}}', env_value)
+
+    return string
+
+
+class Tool:
+    tool_scripts_schema = Schema(
+        Or(
+            {
+                "init": And(str),
+                "destroy": And(str),
+            },
+            {
+                Optional(str): {
+                    "init": And(str),
+                    "destroy": And(str),
+                }
+            }
+        )
+    )
+    tool_schema = Schema(
+        {
+            Optional("depends_on"): Or(str, list[str]),
+            "scripts": tool_scripts_schema
+        }
+    )
+
+    def __init__(self, name: str, dependencies: list[str], scripts: dict[str, str]):
+        self.name = name
+        self.dependencies = dependencies
+        self.scripts = scripts
+
+    def run(self, script: str) -> tuple[str, int]:
+        if script not in self.scripts:
+            raise ValueError(f"Module \"{self.name}\" does not have script '{script}' in {list(self.scripts.keys())}")
+
+        # Inject environment variables
+        substituted_script = replace_env(self.scripts[script])
+        try:
+            _script = shlex.split(substituted_script)
+
+            if shutil.which(_script[0]) is None:
+                raise OSError(f"'{_script[0]}' is not installed. Trying script in shell.")
+
+            result = subprocess.run(_script, shell=True, check=True, text=True, capture_output=True)
+        except OSError:
+            result = subprocess.run(substituted_script, shell=True, check=True, text=True, capture_output=True)
+
+        return result.stdout, result.returncode
+
+    def initialize(self):
+        msg, code = self.run("init")
+        print(msg)
+
+        return code == 0
+
+    def destroy(self):
+        msg, code = self.run("destroy")
+        print(msg)
+
+        return code == 0
 
 
 class Module:
     module_schema = Schema(
         {
-            "name": And(str, len),
+            "name": And(str, Use(replace_env)),
+            "dest": And(str, Use(replace_env)),
             "source": Schema(
                 {
                     Or("git", "curl", "script", "docker-image", "dockerfile", only_one=True): str
@@ -20,13 +99,14 @@ class Module:
         }
     )
 
-    def __init__(self, name: str, source: str, scripts: dict[str, str]):
+    def __init__(self, name: str, dest: str, source: str, scripts: dict[str, str]):
         if "init" not in scripts.keys():
             raise TypeError(f"No 'init' script defined for module \"{name}\". Failed to create Module.")
         if "destroy" not in scripts.keys():
             raise TypeError(f"No 'destroy' script defined for module \"{name}\". Failed to create Module.")
 
         self.name = name
+        self.dest = dest
         self.source = source
         self.scripts = scripts
 
@@ -34,9 +114,17 @@ class Module:
         if script not in self.scripts:
             raise ValueError(f"Module \"{self.name}\" does not have script '{script}' in {list(self.scripts.keys())}")
 
-        _script = shlex.split(self.scripts[script])
+        # Inject environment variables
+        substituted_script = replace_env(self.scripts[script])
+        try:
+            _script = shlex.split(substituted_script)
 
-        result = subprocess.run(_script, shell=True, check=True, text=True, capture_output=True)
+            if shutil.which(_script[0]) is None:
+                raise OSError(f"'{_script[0]}' is not installed. Trying script in shell.")
+
+            result = subprocess.run(_script, shell=True, check=True, text=True, capture_output=True)
+        except OSError:
+            result = subprocess.run(substituted_script, shell=True, check=True, text=True, capture_output=True)
 
         return result.stdout, result.returncode
 
@@ -55,33 +143,125 @@ class Module:
 
 class GitModule(Module):
     def initialize(self):
-        print(f"Going to clone a git repository: {self.source}")
-        return True
+        if shutil.which("git") is None:
+            raise OSError(f"Git is not installed. Please install Git and try again.")
+
+        cmd = [
+            "git",
+            "clone",
+            "--progress",
+            self.source,
+            self.dest
+        ]
+        result = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
+
+        if result.returncode != 0:
+            print(result.stdout, file=sys.stderr)
+            return False
+        else:
+            return True
 
 
 class CurlModule(Module):
     def initialize(self):
-        # print(f"Going to download and run this script: {self.source}")
-        # return True
-        print(f"Going to pretend like {self.name} failed to initialize!")
-        return False
+        _os = platform.system().lower()
+        windows = _os in ["windows", "win32"]
+
+        if windows and shutil.which("git-bash") is None:
+            raise OSError(f"Windows detected and Git Bash is not installed. Please install Git Bash and try again.")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with requests.get(self.source) as request:
+                _filename = os.path.join(tmpdir, "script.sh")
+                if request.status_code == 200:
+                    with open(_filename, "w") as module_script_file:
+                        module_script_file.write(request.text)
+
+                    os.chmod(_filename, 0o775)
+                    shell = "git-bash" if windows else "bash"
+
+                    try:
+                        result = subprocess.run([shell, _filename], check=True, stdout=subprocess.PIPE, text=True)
+                    except subprocess.CalledProcessError as error:
+                        print(f"Error while running the script. Error: {error.output}")
+                        print(result.stdout)
+                else:
+                    return False
+
+            if result.returncode != 0:
+                print(result.stdout, file=sys.stderr)
+                return False
+            else:
+                return True
+
+
+def create_module(module: dict, name: str):
+    mode = next(iter(module["source"]))
+    source = module["source"][mode]
+    dest = module["dest"]
+
+    if mode == "git":
+        return GitModule(name, dest, source, module["scripts"])
+    elif mode == "curl":
+        return CurlModule(name, dest, source, module["scripts"])
+    else:
+        return Module(name, dest, source, module["scripts"])
 
 
 class Starter:
     starterfile_schema = Schema(
         {
             "tools": And(dict, len),
-            "modules": And(dict, len)
+            "modules": And(dict, len),
+            Optional('env_file'): And(Or(Use(list), None))
         }
     )
 
-    def __init__(self, modules: list[Module]):
+    def __init__(self, modules: list[Module], tools: list[Tool]):
         self.modules = modules
+        self.tools = tools
 
     def up(self, teardown_on_failure=True):
+        self.install_tools(teardown_on_failure)
+        self.install_modules(teardown_on_failure)
+
+    def install_tools(self, teardown_on_failure=True):
+        if len(self.tools) == 0:
+            print("Nothing to do.")
+            return False
+
+        print("Installing tools...")
+
+        failed_tools = []
+        for tool in self.tools:
+            result = tool.initialize()
+
+            if result is False:
+                failed_tools.append(tool.name)
+
+        if len(failed_tools) > 0:
+            print("Failed tools:", failed_tools, file=sys.stderr)
+
+            if teardown_on_failure:
+                succeeded_tools = [tool for tool in self.tools if tool.name not in failed_tools]
+                print("Rolling back other tools:", [tool.name for tool in succeeded_tools], file=sys.stderr)
+
+                for tool in succeeded_tools:
+                    destroyed = tool.destroy()
+                    if not destroyed:
+                        # TODO handle failure to destroy better
+                        print(f"FATAL: Failed to destroy tool \"{tool.name}\"", file=sys.stderr)
+
+            return False
+
+        return True
+
+    def install_modules(self, teardown_on_failure=True):
         if len(self.modules) == 0:
             print("Nothing to do.")
             return False
+
+        print("Installing modules...")
 
         failed_modules = []
         for module in self.modules:
@@ -112,6 +292,23 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
     loaded = yaml.safe_load(starterfile_stream)
     Starter.starterfile_schema.validate(loaded)
 
+    for env_file in loaded["env_file"]:
+        _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
+        load_dotenv(str(_path))
+
+    tools = []
+
+    for tool_name in loaded["tools"]:
+        _tool = loaded["tools"][tool_name]
+        tool = Tool.tool_schema.validate(_tool)
+
+        dependencies = tool["depends_on"] if "depends_on" in _tool else []
+
+        if type(dependencies) is str:
+            dependencies = [dependencies]
+
+        tools.append(Tool(tool_name, dependencies, tool["scripts"]))
+
     modules = []
 
     for module_name in loaded["modules"]:
@@ -119,31 +316,15 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
         module = Module.module_schema.validate(_module)
 
         name = module["name"]
-        mode = next(iter(module["source"]))
-        source = module["source"][mode]
 
-        if mode == "git":
-            module = GitModule(name, source, module["scripts"])
-        elif mode == "curl":
-            module = CurlModule(name, source, module["scripts"])
-        else:
-            module = Module(name, source, module["scripts"])
+        modules.append(create_module(module, name))
 
-        modules.append(module)
+    print("SUCCESS! Initialized modules:", [module.name for module in modules])
 
-    return Starter(modules)
+    return Starter(modules, tools)
 
 
 if __name__ == "__main__":
-    # test = Module("test", "", {"init": "echo hello world"})
-    # test.run("init")
-    # test.run("test")
-    #
-    # experiment = Module("experiment", "", {"test": "echo goodbye world", "init": "sleep 1"})
-    # experiment.run("init")
-    # experiment.run("ex")
-
-    s = None
     with open("../Starterfile.yaml", "r") as f:
         s = parse_starterfile(f)
 
