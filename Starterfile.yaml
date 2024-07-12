@@ -33,21 +33,18 @@ modules:
     dest: postgres-s
     source:
       script: docker run postgresql -e $POSTGRES_CONTAINER_NAME -e $POSTGRES_PASSWORD
-#    environment:
-#      POSTGRES_CONTAINER_NAME: $POSTGRES_CONTAINER_NAME
-#      POSTGRES_PASSWORD: $POSTGRES_PASSWORD  # SECRET
     scripts:
       init: echo hello ${POSTGRES_CONTAINER_NAME}!
       destroy: echo byebye
-#  path.module-express:
-##    depends-on: path.module-postgresql
-#    name: ${EXPRESS_NAME}
-#    dest: express-s
-#    source:
-#      git: git@github.com:Start-Out/path.module-express.git
-#    scripts:
-#      init: cd ./express && npm install  # REQUIRED
-#      destroy: rm -rf ./express  # REQUIRED
+  path.module-express:
+    depends-on: path.module-postgresql
+    name: ${EXPRESS_NAME}
+    dest: express-s
+    source:
+      git: git@github.com:Start-Out/path.module-express.git
+    scripts:
+      init: cd ./express && npm install  # REQUIRED
+      destroy: rm -rf ./express  # REQUIRED
   path.module-react:
     name: react
     dest: react-s
