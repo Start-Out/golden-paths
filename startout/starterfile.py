@@ -31,15 +31,25 @@ class Tool:
     tool_scripts_schema = Schema(
         Or(
             {
-                "init": And(str),
-                "destroy": And(str),
+                Optional("install"): And(str),
+                Optional("uninstall"): And(str),
+                Optional("check"): And(str),
+                Optional("windows"): {
+                    Optional("install"): And(str),
+                    Optional("uninstall"): And(str),
+                    Optional("check"): And(str),
+                },
+                Optional("mac"): {
+                    Optional("install"): And(str),
+                    Optional("uninstall"): And(str),
+                    Optional("check"): And(str),
+                },
+                Optional("linux"): {
+                    Optional("install"): And(str),
+                    Optional("uninstall"): And(str),
+                    Optional("check"): And(str),
+                },
             },
-            {
-                Optional(str): {
-                    "init": And(str),
-                    "destroy": And(str),
-                }
-            }
         )
     )
     tool_schema = Schema(
@@ -49,17 +59,54 @@ class Tool:
         }
     )
 
-    def __init__(self, name: str, dependencies: list[str], scripts: dict[str, str]):
+    def __init__(self, name: str, dependencies: list[str], scripts: dict[str, str or dict[str, str]]):
+        if self.get_script("install", scripts, name=name) is None:
+            raise TypeError(f"No 'install' script defined for module \"{name}\". Failed to create Module.")
+        if self.get_script("uninstall", scripts, name=name) is None:
+            raise TypeError(f"No 'uninstall' script defined for module \"{name}\". Failed to create Module.")
+
         self.name = name
         self.dependencies = dependencies
         self.scripts = scripts
 
+    def get_script(self, script: str, scripts_list, name: str or None = None) -> str or None:
+        if name is None:
+            name = self.name
+
+        _os = platform.system().lower()
+        windows = _os in ["windows", "win32"]
+        macos = _os in ["darwin"]
+
+        _script = None
+
+        # Default to top-level definition of the script (not platform-dependent)
+        if script in scripts_list:
+            _script = scripts_list[script]
+
+        # Any platform-dependent scripts will override the top-level definition
+        if windows and "windows" in scripts_list.keys():
+            if script in scripts_list["windows"]:
+                _script = scripts_list["windows"][script]
+        elif macos and "mac" in scripts_list.keys():
+            if script in scripts_list["mac"]:
+                _script = scripts_list["mac"][script]
+        elif (not windows and not macos) and "linux" in scripts_list.keys():
+            if script in scripts_list["linux"]:
+                _script = scripts_list["linux"][script]
+        else:
+            if _script is None:
+                raise ValueError(f"Tool \"{name}\" does not have script '{script}' "
+                                 f"in {list(scripts_list.keys())}")
+
+
+        return _script
+
     def run(self, script: str) -> tuple[str, int]:
-        if script not in self.scripts:
-            raise ValueError(f"Module \"{self.name}\" does not have script '{script}' in {list(self.scripts.keys())}")
+
+        _script = self.get_script(script, self.scripts)
 
         # Inject environment variables
-        substituted_script = replace_env(self.scripts[script])
+        substituted_script = replace_env(_script)
         try:
             _script = shlex.split(substituted_script)
 
@@ -72,14 +119,19 @@ class Tool:
 
         return result.stdout, result.returncode
 
+    def check(self):
+        response, code = self.run("check")
+
+        return code == 0
+
     def initialize(self):
-        msg, code = self.run("init")
+        msg, code = self.run("install")
         print(msg)
 
         return code == 0
 
     def destroy(self):
-        msg, code = self.run("destroy")
+        msg, code = self.run("uninstall")
         print(msg)
 
         return code == 0
@@ -92,7 +144,7 @@ class Module:
             "dest": And(str, Use(replace_env)),
             "source": Schema(
                 {
-                    Or("git", "curl", "script", "docker-image", "dockerfile", only_one=True): str
+                    Or("git", "curl", "script", "docker", only_one=True): str
                 }
             ),
             "scripts": And(dict, len)
@@ -234,6 +286,10 @@ class Starter:
 
         failed_tools = []
         for tool in self.tools:
+            if tool.check():
+                print(f".. Tool '{tool.name}' is already installed, skipping.")
+                continue
+
             result = tool.initialize()
 
             if result is False:
@@ -287,6 +343,12 @@ class Starter:
 
         return True
 
+    def get_init_options(self):
+        pass
+
+    def set_init_options(self, options):
+        pass
+
 
 def parse_starterfile(starterfile_stream: TextIO) -> Starter:
     loaded = yaml.safe_load(starterfile_stream)
@@ -309,6 +371,8 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
 
         tools.append(Tool(tool_name, dependencies, tool["scripts"]))
 
+    print("SUCCESS! Parsed tools:", [tool.name for tool in tools])
+
     modules = []
 
     for module_name in loaded["modules"]:
@@ -319,7 +383,7 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
 
         modules.append(create_module(module, name))
 
-    print("SUCCESS! Initialized modules:", [module.name for module in modules])
+    print("SUCCESS! Parsed modules:", [module.name for module in modules])
 
     return Starter(modules, tools)
 
@@ -327,5 +391,9 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
 if __name__ == "__main__":
     with open("../Starterfile.yaml", "r") as f:
         s = parse_starterfile(f)
+
+    # for opt in s.get_init_options():
+    #     response = cli_prompt(opt)
+    #     os.environ(opt.env_name) = response
 
     s.up()

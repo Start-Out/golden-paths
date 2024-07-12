@@ -1,5 +1,5 @@
 # Looks at the same level as this Starterfile for files
-env_file:
+env_file: # TODO default behavior
   - .env
   - prod.env
 
@@ -7,20 +7,25 @@ tools:
   nodejs:
 #    optional: False    # Do not need to specify non-optional, defaults to required
     scripts:
+      check: |
+        node --version
+        npm --version
       windows:
-        init: scoop install nodejs
-        destroy: scoop uninstall nodejs
+        install: scoop install nodejs
+        uninstall: scoop uninstall nodejs
       mac:
-        init: brew install node
-        destroy: brew uninstall node
+        install: brew install node
+        uninstall: brew uninstall node
       linux:
-        init: sudo apt install npm
-        destroy: sudo apt remove npm
+        install: sudo apt install npm
+        uninstall: sudo apt remove npm
+        check: npm --version
   pnpm:
     depends_on: nodejs
     scripts:
-      init: npm install -g pnpm
-      destroy: npm uninstall -g pnpm
+      install: npm install -g pnpm
+      uninstall: npm uninstall -g pnpm
+      check: pnpm --version
 
 modules:
   path.module-postgresql:
@@ -33,7 +38,7 @@ modules:
 #      POSTGRES_PASSWORD: $POSTGRES_PASSWORD  # SECRET
     scripts:
       init: echo hello ${POSTGRES_CONTAINER_NAME}!
-      destroy: echo hi
+      destroy: echo byebye
 #  path.module-express:
 ##    depends-on: path.module-postgresql
 #    name: ${EXPRESS_NAME}
@@ -46,6 +51,15 @@ modules:
 #  path.module-react:
 #    name: react
 #    dest: react-s
+##    init_options:
+##      - env_name: MODULE_REACT_USE_TYPESCRIPT
+##        type: boolean
+##        default: true
+##        prompt: Would you like to use TypeScript?
+##      - env_name: MODULE_REACT_APP_NAME
+##        type: string
+##        default: startout-react-app
+##        prompt: What would you like the React app to be called?
 #    source:
 #      curl: https://raw.githubusercontent.com/Start-Out/path.module-react/main/setup_react.sh
 #    scripts:
