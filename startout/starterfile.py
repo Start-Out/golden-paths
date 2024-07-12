@@ -14,6 +14,15 @@ from dotenv import load_dotenv
 from schema import Schema, And, Or, Optional, Use
 
 
+def type_tool(type_str: str):
+    types = {
+        "int": int,
+        "float": float,
+        "str": str,
+        "string": str,
+    }
+    return types[type_str.lower()]
+
 def replace_env(string: str) -> str:
     pattern = re.compile(r'\$\{(.+?)}')
     matches = pattern.findall(string)
@@ -137,6 +146,19 @@ class Tool:
         return code == 0
 
 
+class InitOption:
+    def __init__(self, options_set):
+        default = options_set["default"]
+
+        if "type" in options_set.keys():
+            _t = type_tool(options_set["type"])
+            default = _t(default)
+
+        self.name = options_set["env_name"]
+        self.default = default
+        self.prompt = options_set["prompt"]
+
+
 class Module:
     module_schema = Schema(
         {
@@ -147,11 +169,19 @@ class Module:
                     Or("git", "curl", "script", "docker", only_one=True): str
                 }
             ),
-            "scripts": And(dict, len)
+            "scripts": And(dict, len),
+            Optional("init_options"): list[Schema(
+                {
+                    "env_name": And(str, len),
+                    "type": And(str, len),
+                    "default": And(str, len),
+                    "prompt": And(str, len),
+                }
+            )]
         }
     )
 
-    def __init__(self, name: str, dest: str, source: str, scripts: dict[str, str]):
+    def __init__(self, name: str, dest: str, source: str, scripts: dict[str, str], init_options = None):
         if "init" not in scripts.keys():
             raise TypeError(f"No 'init' script defined for module \"{name}\". Failed to create Module.")
         if "destroy" not in scripts.keys():
@@ -161,6 +191,7 @@ class Module:
         self.dest = dest
         self.source = source
         self.scripts = scripts
+        self.init_options = init_options
 
     def run(self, script: str) -> tuple[str, int]:
         if script not in self.scripts:
@@ -252,13 +283,18 @@ def create_module(module: dict, name: str):
     source = module["source"][mode]
     dest = module["dest"]
 
-    if mode == "git":
-        return GitModule(name, dest, source, module["scripts"])
-    elif mode == "curl":
-        return CurlModule(name, dest, source, module["scripts"])
-    else:
-        return Module(name, dest, source, module["scripts"])
+    options = None
+    if "init_options" in module.keys():
+        options = []
+        for options_set in module["init_options"]:
+            options.append(InitOption(options_set))
 
+    if mode == "git":
+        return GitModule(name, dest, source, module["scripts"], options)
+    elif mode == "curl":
+        return CurlModule(name, dest, source, module["scripts"], options)
+    else:
+        return Module(name, dest, source, module["scripts"], options)
 
 class Starter:
     starterfile_schema = Schema(
