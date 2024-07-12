@@ -1,3 +1,4 @@
+import itertools
 import os
 import platform
 import re
@@ -22,6 +23,7 @@ def type_tool(type_str: str):
         "string": str,
     }
     return types[type_str.lower()]
+
 
 def replace_env(string: str) -> str:
     pattern = re.compile(r'\$\{(.+?)}')
@@ -107,7 +109,6 @@ class Tool:
                 raise ValueError(f"Tool \"{name}\" does not have script '{script}' "
                                  f"in {list(scripts_list.keys())}")
 
-
         return _script
 
     def run(self, script: str) -> tuple[str, int]:
@@ -170,6 +171,7 @@ class Module:
                 }
             ),
             "scripts": And(dict, len),
+            Optional("depends_on"): Or(str, list[str], Use(replace_env)),
             Optional("init_options"): list[Schema(
                 {
                     "env_name": And(str, len),
@@ -181,7 +183,7 @@ class Module:
         }
     )
 
-    def __init__(self, name: str, dest: str, source: str, scripts: dict[str, str], init_options = None):
+    def __init__(self, name: str, dest: str, source: str, scripts: dict[str, str], dependencies=None, init_options=None):
         if "init" not in scripts.keys():
             raise TypeError(f"No 'init' script defined for module \"{name}\". Failed to create Module.")
         if "destroy" not in scripts.keys():
@@ -191,6 +193,7 @@ class Module:
         self.dest = dest
         self.source = source
         self.scripts = scripts
+        self.dependencies = dependencies
         self.init_options = init_options
 
     def run(self, script: str) -> tuple[str, int]:
@@ -288,13 +291,42 @@ def create_module(module: dict, name: str):
         options = []
         for options_set in module["init_options"]:
             options.append(InitOption(options_set))
+    dependencies = None
+    if "depends_on" in module.keys():
+        _deps = module["depends_on"]
+        if type(_deps) is str:
+            dependencies = [_deps]
+        else:
+            dependencies = _deps
 
     if mode == "git":
-        return GitModule(name, dest, source, module["scripts"], options)
+        return GitModule(
+            name=name,
+            dest=dest,
+            source=source,
+            scripts=module["scripts"],
+            init_options=options,
+            dependencies=dependencies
+        )
     elif mode == "curl":
-        return CurlModule(name, dest, source, module["scripts"], options)
+        return CurlModule(
+            name=name,
+            dest=dest,
+            source=source,
+            scripts=module["scripts"],
+            init_options=options,
+            dependencies=dependencies
+        )
     else:
-        return Module(name, dest, source, module["scripts"], options)
+        return Module(
+            name=name,
+            dest=dest,
+            source=source,
+            scripts=module["scripts"],
+            init_options=options,
+            dependencies=dependencies
+        )
+
 
 class Starter:
     starterfile_schema = Schema(
@@ -305,12 +337,13 @@ class Starter:
         }
     )
 
-    def __init__(self, modules: list[Module], tools: list[Tool]):
+    def __init__(self, modules: list[Module], tools: list[Tool], dependency_layers: list[list[str]]):
         self.modules = modules
         self.tools = tools
+        self.dependency_layers = dependency_layers
 
     def up(self, teardown_on_failure=True):
-        self.install_tools(teardown_on_failure)
+        # self.install_tools(teardown_on_failure)
         self.install_modules(teardown_on_failure)
 
     def install_tools(self, teardown_on_failure=True):
@@ -356,11 +389,13 @@ class Starter:
         print("Installing modules...")
 
         failed_modules = []
-        for module in self.modules:
-            result = module.initialize()
+        for layer in self.dependency_layers:
+            # Install modules layer by layer so that their dependencies are all met before being installed
+            for module in (module for module in self.modules if module.name in layer):
+                result = module.initialize()
 
-            if result is False:
-                failed_modules.append(module.name)
+                if result is False:
+                    failed_modules.append(module.name)
 
         if len(failed_modules) > 0:
             print("Failed modules:", failed_modules, file=sys.stderr)
@@ -419,9 +454,46 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
 
         modules.append(create_module(module, name))
 
+    # Handle dependencies
+    dependency_layers = [[module.name for module in modules if module.dependencies is None]]
+
+    # Check for any unfulfilled dependencies
+    all_dependencies = set(itertools.chain.from_iterable([module.dependencies for module in modules if module.dependencies is not None]))
+    unmet_dependencies = all_dependencies - set([module.name for module in modules])
+
+    if len(unmet_dependencies) > 0:
+        print(f"ERROR: Dependency not met {unmet_dependencies}", file=sys.stderr)
+        exit(1)
+
+    # Modules with no dependencies are added to the first layer
+
+    # Put remaining modules (those with dependencies) in a set
+    dependent_modules = False
+    if len(dependency_layers) > 0:
+        dependent_modules = set([module for module in modules if module.name not in dependency_layers[0]])
+
+    # Add modules to layers until none are left
+    while dependent_modules:
+        scheduled_modules = list(itertools.chain.from_iterable(dependency_layers))
+
+        added_modules = []
+        for dependent_module in dependent_modules:
+            if all(needed in scheduled_modules for needed in dependent_module.dependencies):
+                added_modules.append(dependent_module)
+
+        if len(added_modules) == 0:
+            print(f"ERROR: Could not meet dependencies for {[module.name for module in dependent_modules]}, "
+                  f"may be a circular dependency.", file=sys.stderr)
+            exit(1)
+
+        for added_module in added_modules:
+            dependent_modules.remove(added_module)
+
+        dependency_layers.append([module.name for module in added_modules])
+
     print("SUCCESS! Parsed modules:", [module.name for module in modules])
 
-    return Starter(modules, tools)
+    return Starter(modules, tools, dependency_layers)
 
 
 if __name__ == "__main__":

@@ -37,30 +37,50 @@ modules:
       init: echo hello ${POSTGRES_CONTAINER_NAME}!
       destroy: echo byebye
   path.module-express:
-    depends-on: path.module-postgresql
-    name: ${EXPRESS_NAME}
-    dest: express-s
+    depends_on:
+      - postgres
+    name: express
+    dest: ${EXPRESS_DEST}
     source:
-      git: git@github.com:Start-Out/path.module-express.git
+#      git: git@github.com:Start-Out/path.module-express.git
+      script: echo we need #TODO handle git subprocess not succeeding
     scripts:
-      init: cd ./express && npm install  # REQUIRED
+#      init: cd ./express && npm install  # REQUIRED
+      init: echo install  # REQUIRED
       destroy: rm -rf ./express  # REQUIRED
-  path.module-react:
-    name: react
-    dest: react-s
-    init_options:
-      - env_name: MODULE_REACT_USE_TYPESCRIPT
-        default: true  # Type can be interpolated from the type of default
-        prompt: Would you like to use TypeScript?
-      - env_name: MODULE_REACT_APP_NAME
-        type: string  # Or you can specify the type
-        default: 100
-        prompt: What would you like the React app to be called?
+#  path.module-react:
+#    name: react
+#    dest: react-s
+#    init_options:
+#      - env_name: MODULE_REACT_USE_TYPESCRIPT
+#        default: true  # Type can be interpolated from the type of default
+#        prompt: Would you like to use TypeScript?
+#      - env_name: MODULE_REACT_APP_NAME
+#        type: string  # Or you can specify the type
+#        default: 100
+#        prompt: What would you like the React app to be called?
+#    source:
+#      curl: https://raw.githubusercontent.com/Start-Out/path.module-react/main/setup_react.sh
+#    scripts:
+##      init: cd ./startout-react-app && npm test  # REQUIRED
+#      init: echo I think that ghosts are ${GHOSTS} # REQUIRED
+#      start: cd ./startout-react-app && npm start
+#      destroy: rm -rf ./startout-react-app  # REQUIRED
+  random:
+    depends_on: express
+    name: needy
+    dest: needy
     source:
-      curl: https://raw.githubusercontent.com/Start-Out/path.module-react/main/setup_react.sh
+      script: echo hi
     scripts:
-#      init: cd ./startout-react-app && npm test  # REQUIRED
-      init: echo I think that ghosts are ${GHOSTS} # REQUIRED
-      start: cd ./startout-react-app && npm start
-      destroy: rm -rf ./startout-react-app  # REQUIRED
-
+      init: echo hi
+      destroy: echo hi
+  randoma:
+    depends_on: express
+    name: helpful
+    dest: needy
+    source:
+      script: echo hi
+    scripts:
+      init: echo hi
+      destroy: echo hi
