@@ -2,9 +2,19 @@ import os.path
 import shlex
 import subprocess
 import sys
-from rich import print
+from rich.console import Console
+from rich.theme import Theme
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+custom_theme = Theme({
+    "input_prompt": "bold cyan",
+    "announcement": "bold yellow",
+    "success": "bold green",
+    "error": "bold red",
+    "bold": "bold",
+})
+
+console = Console(theme=custom_theme)
 
 
 def create_repo_from_temp(
@@ -38,10 +48,10 @@ def create_repo_from_temp(
 
         progress.update(task, description="Done", completed=True)
 
-
     if result.returncode == 0:
-        print(f"[green]{result.stdout.decode()}[/]")
+        console.print(f"{result.stdout.decode()}", style='success')
         return os.path.join(os.getcwd(), repo_name)
     else:
-        print(f"[red]{result.stderr.decode()}[/]", file=sys.stderr)
+        console.file = sys.stderr #set console output to stderr
+        console.print(f"ERROR: {result.stdout.decode()}", style='error')
         return False
