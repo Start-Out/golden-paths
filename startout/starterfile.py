@@ -62,11 +62,12 @@ def replace_env(string: str) -> str:
     return string
 
 
-def run_script_with_env_substitution(script_str: str) -> tuple[str, int]:
+def run_script_with_env_substitution(script_str: str, verbose: bool = False) -> tuple[str, int]:
     """
     Run a script with environment variable substitution. If the script fails to run as a shlex'd list, run it as a
     string instead.
 
+    :param verbose: Whether to print warning if the script fails to run as a shlex'd list or not.
     :param script_str: The script to be executed as a string.
     :return: A tuple containing the stdout output and the return code of the script.
     """
@@ -79,12 +80,15 @@ def run_script_with_env_substitution(script_str: str) -> tuple[str, int]:
 
     try:
         if shutil.which(_script[0]) is None:
-            print(f"'{_script[0]}' is not installed. Trying script in shell.", file=sys.stderr)
+            if verbose:
+                print(f"'{_script[0]}' is not installed. Trying script in shell.", file=sys.stderr)
             result = subprocess.run(substituted_script, shell=True, check=True, text=True, capture_output=True)
         else:
             result = subprocess.run(_script, shell=True, check=True, text=True, capture_output=True)
     except OSError as e:
-        return f"ERROR: {e}", 1
+        return f"{e}", 1
+    except subprocess.CalledProcessError as e:
+        return f"{e.stdout}\n{e.stderr}", e.returncode
 
     return result.stdout, result.returncode
 
@@ -292,6 +296,7 @@ class InitOption:
         self.name = replace_env(options_set["env_name"])
         self.default = replace_env(default) if type(default) is str else default
         self.prompt = replace_env(options_set["prompt"])
+        self.value = None
 
 
 class Module:
@@ -303,14 +308,8 @@ class Module:
     - git
       : A URI is passed to `git clone`
 
-    - curl (DEPRECATED)
-      : A URI is downloaded and executed by `bash` (or `git-bash` on Windows)
-
     - script
       : A script is executed by `bash` (or `git-bash` on Windows)
-
-    - docker
-      : A Docker image does something neat? TODO decide on how Docker is used with Starterfiles
 
     Attributes:
         name (str): The name of the module.
@@ -326,7 +325,7 @@ class Module:
             "dest": And(str, Use(replace_env)),
             "source": Schema(
                 {
-                    Or("git", "curl", "script", "docker", only_one=True): str
+                    Or("git", "script", only_one=True): str
                 }
             ),
             "scripts": And(dict, len),
@@ -366,17 +365,23 @@ class Module:
         self.dependencies = dependencies
         self.init_options = init_options
 
-    def run(self, script: str) -> tuple[str, int]:
+    def run(self, script: str, print_output: bool = False) -> tuple[str, int]:
         """
         Runs a script with environment variable substitutions.
 
         :param script: The name of the script to be executed, located in the Module's scripts.
+        :param print_output: Whether to print the response at the .... level
         :return: A tuple containing the stdout output and the return code of the script execution.
         """
         if script not in self.scripts:
             raise ValueError(f"Module \"{self.name}\" does not have script '{script}' in {list(self.scripts.keys())}")
 
-        return run_script_with_env_substitution(self.scripts[script])
+        response, code = run_script_with_env_substitution(self.scripts[script])
+
+        if print_output and len(response.strip()) > 0:
+            print(f".... [{self.name}.{script}]: {response.strip()}")
+
+        return response, code
 
     def initialize(self):
         """
@@ -384,10 +389,14 @@ class Module:
 
         :return: True if the response code is 0, False otherwise.
         """
-        msg, code = self.run("init")
-        print(msg)
+        msg, code = self.run("init", print_output=True)
 
-        return code == 0
+        if code != 0:
+            print(f".. FAILURE [{self.name}]: {msg}", file=sys.stderr)
+            return False
+        else:
+            print(f".. SUCCESS [{self.name}]: Initialized module {self.name}")
+            return True
 
     def destroy(self):
         """
@@ -395,10 +404,14 @@ class Module:
 
         :return: True if the response code is 0, False otherwise.
         """
-        msg, code = self.run("destroy")
-        print(msg)
+        msg, code = self.run("destroy", print_output=True)
 
-        return code == 0
+        if code != 0:
+            print(f".. FAILURE [{self.name}]: {msg}", file=sys.stderr)
+            return False
+        else:
+            print(f".. SUCCESS [{self.name}]: Destroyed module {self.name}")
+            return True
 
 
 class GitModule(Module):
@@ -445,22 +458,21 @@ class GitModule(Module):
         result = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)  # TODO hoist the feedback to the terminal, especially if it can be displayed by the CLI which enwraps it
 
         if result.returncode != 0:
-            print(result.stdout, file=sys.stderr)
+            print(f".. FAILURE [{self.name}]: {result.stdout.strip()}", file=sys.stderr)
             return False
         else:
-            return True
+            print(f".... PROGRESS [{self.name}]: Cloned module {self.name}, running init script")
+            msg, code = self.run("init", print_output=True)
+
+            if code != 0:
+                print(f".. FAILURE [{self.name}]: {msg}", file=sys.stderr)
+                return False
+            else:
+                print(f".. SUCCESS [{self.name}]: Initialized module {self.name}")
+                return True
 
 
-class CurlModule(Module):
-    """
-    DEPRECATED
-
-    :class:`CurlModule` is a subclass of :class:`Module` and provides functionality
-    for downloading and executing a script.
-
-    Raises:
-        OSError: If git-bash is not installed on a Windows system.
-    """
+class ScriptModule(Module):
     def initialize(self):
         _os = platform.system().lower()
         windows = _os in ["windows", "win32"]
@@ -468,29 +480,19 @@ class CurlModule(Module):
         if windows and shutil.which("git-bash") is None:
             raise OSError(f"Windows detected and Git Bash is not installed. Please install Git Bash and try again.")
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with requests.get(self.source) as request:
-                _filename = os.path.join(tmpdir, "script.sh")
-                if request.status_code == 200:
-                    with open(_filename, "w") as module_script_file:
-                        module_script_file.write(request.text)
+        _script = f"{'git-bash' if windows else 'bash'} -c \"{self.source}\""
 
-                    os.chmod(_filename, 0o775)
-                    shell = "git-bash" if windows else "bash"
+        response, code = run_script_with_env_substitution(_script, verbose=True)
 
-                    try:
-                        result = subprocess.run([shell, _filename], check=True, stdout=subprocess.PIPE, text=True)
-                    except subprocess.CalledProcessError as error:
-                        print(f"Error while running the script. Error: {error.output}")
-                        print(result.stdout)
-                else:
-                    return False
-
-            if result.returncode != 0:
-                print(result.stdout, file=sys.stderr)
-                return False
-            else:
-                return True
+        if code != 0:
+            print(f".. FAILURE [{self.name}]: {response}", file=sys.stderr)
+            return False
+        else:
+            msg = response.strip()
+            if len(msg) > 0:
+                print(f".... [{self.name}.source.script]: {response.strip()}")
+            print(f".. SUCCESS [{self.name}]: Ran script for module {self.name}")
+            return True
 
 
 def create_module(module: dict, name: str):
@@ -522,8 +524,8 @@ def create_module(module: dict, name: str):
     _T = Module
     if mode == "git":
         _T = GitModule
-    elif mode == "curl":
-        _T = CurlModule
+    elif mode == "script":
+        _T = ScriptModule
 
     return _T(
         name=name,
@@ -619,14 +621,14 @@ class Starter:
         self.module_dependencies = module_dependencies
         self.tool_dependencies = tool_dependencies
 
-    def up(self, teardown_on_failure=True):
+    def up(self, teardown_on_failure=True, fail_early=True):
         """
         :param teardown_on_failure: A boolean flag to determine whether to perform teardown operations if any failure occurs during the method execution. Default value is `True`.
+        :param fail_early: A boolean flag to determine whether to abort the process as soon as a tool or module fails to initialize. Default value is `False`.
         :return: A boolean value indicating whether the tools and modules installation was successful. Returns `True` if both tools and modules were installed successfully, otherwise returns `False`.
-
         """
-        tools_installed = self.install_tools(teardown_on_failure)
-        modules_installed = self.install_modules(teardown_on_failure)
+        tools_installed = self.install_tools(teardown_on_failure, fail_early)
+        modules_installed = self.install_modules(teardown_on_failure, fail_early)
 
         if not tools_installed:
             print("ERROR: Failed to install tools!", file=sys.stderr)
@@ -635,12 +637,14 @@ class Starter:
 
         return tools_installed and modules_installed
 
-    def install_tools(self, teardown_on_failure=True):
+    def install_tools(self, teardown_on_failure=True, fail_early=True):
         """
         Install tools layer by layer so that their dependencies are all met before being installed.
 
         :param teardown_on_failure: If True, rollback other tools if any tool installation fails.
         :type teardown_on_failure: bool
+        :param fail_early: If True, function will return false as soon as a tool fails to initialize.
+        :type fail_early: bool
         :return: True if all tools are installed successfully, False otherwise.
         :rtype: bool
         """
@@ -653,8 +657,11 @@ class Starter:
         print("Installing tools...")
 
         failed_tools = []
+        successful_tools = []
         for layer in self.tool_dependencies:
             # Install tools layer by layer so that their dependencies are all met before being installed
+            early_exit = False
+
             for tool in (tool for tool in self.tools if tool.name in layer):
                 # Use the tool's check function to prevent attempts to install an existing tool
                 if tool.check():
@@ -664,6 +671,13 @@ class Starter:
                 # Initialize this tool, adding it to the list of failures if it cannot be initialized
                 if not tool.initialize():
                     failed_tools.append(tool.name)
+                    if fail_early:
+                        early_exit = True
+                else:
+                    successful_tools.append(tool.name)
+
+            if early_exit:
+                break
 
         # Upon any failed tools, report which tools failed...
         if len(failed_tools) > 0:
@@ -671,14 +685,17 @@ class Starter:
 
             # ... and teardown if specified
             if teardown_on_failure:
-                succeeded_tools = [tool for tool in self.tools if tool.name not in failed_tools]
-                print("Rolling back other tools:", [tool.name for tool in succeeded_tools], file=sys.stderr)
+                print("Rolling back successfully installed tools:", successful_tools, file=sys.stderr)
 
-                for tool in succeeded_tools:
-                    destroyed = tool.destroy()
-                    if not destroyed:
+                destroyed_tools = []
+                for tool in [tool for tool in self.tools if tool.name in successful_tools]:
+                    if not tool.destroy():
                         # TODO handle failure to destroy better
                         print(f"FATAL: Failed to destroy tool \"{tool.name}\"", file=sys.stderr)
+                        print(f".. Only destroyed these tools: {destroyed_tools}", file=sys.stderr)
+                        sys.exit(1)
+                    else:
+                        destroyed_tools.append(tool.name)
 
             # If any tools failed
             return False
@@ -686,12 +703,14 @@ class Starter:
         # If all tools were successfully installed or were already installed
         return True
 
-    def install_modules(self, teardown_on_failure=True):
+    def install_modules(self, teardown_on_failure=True, fail_early=True):
         """
         Install modules layer by layer so that their dependencies are all met before being installed.
 
         :param teardown_on_failure: If True, rollback other tools if any module installation fails.
         :type teardown_on_failure: bool
+        :param fail_early: If True, function will return false as soon as a tool fails to initialize.
+        :type fail_early: bool
         :return: True if all modules are installed successfully, False otherwise.
         :rtype: bool
         """
@@ -704,12 +723,22 @@ class Starter:
         print("Installing modules...")
 
         failed_modules = []
+        successful_modules = []
         for layer in self.module_dependencies:
             # Install modules layer by layer so that their dependencies are all met before being installed
+            early_exit = False
+
             for module in (module for module in self.modules if module.name in layer):
                 # Initialize this module, adding it to the list of failures if it cannot be initialized
                 if not module.initialize():
                     failed_modules.append(module.name)
+                    if fail_early:
+                        early_exit = True
+                else:
+                    successful_modules.append(module.name)
+
+            if early_exit:
+                break
 
         # Report any failed modules
         if len(failed_modules) > 0:
@@ -717,16 +746,19 @@ class Starter:
 
             # Destroy modules which were successfully installed if specified
             if teardown_on_failure:
-                succeeded_modules = [module for module in self.modules if module.name not in failed_modules]
                 print("Rolling back successfully installed modules:",
-                      [module.name for module in succeeded_modules],
+                      successful_modules,
                       file=sys.stderr)
 
-                for module in succeeded_modules:
-                    destroyed = module.destroy()
-                    if not destroyed:
+                destroyed_modules = []
+                for module in [module for module in self.modules if module.name in successful_modules]:
+                    if not module.destroy():
                         # TODO handle failure to destroy better
                         print(f"FATAL: Failed to destroy module \"{module.name}\"", file=sys.stderr)
+                        print(f".. Only destroyed these modules: {destroyed_modules}", file=sys.stderr)
+                        sys.exit(1)
+                    else:
+                        destroyed_modules.append(module.name)
 
             # If any modules failed to initialize
             return False
@@ -735,9 +767,36 @@ class Starter:
         return True
 
     def get_init_options(self):
-        pass
+        """
+        Returns a list of tuples containing the name and init_options of modules
+        that have a non-null value for init_options in the self.modules list.
+
+        :return: A list of tuples where each tuple contains the name and init_options
+                 of modules satisfying the condition.
+        """
+        return [(module.name, module.init_options) for module in self.modules if module.init_options is not None]
 
     def set_init_options(self, options):
+        """
+        Sets the init options of the Starter to be used before calling .up()
+
+        :param options: A dictionary of module and option names along with their corresponding values.
+                        Example: {("react", "MODULE_REACT_USE_TYPESCRIPT"): True,
+                                  ("react", "MODULE_REACT_APP_NAME"): "example-react-app"}
+        :return: None
+        """
+        for module_name, option_name in options:
+            # Get the value from the options set
+            value = options[(module_name, option_name)]
+
+            # Update the environment
+            os.environ[option_name] = str(value)
+
+            # Update the internal variable of the option itself
+            module = [module for module in self.modules if module.name == module_name][0]
+            option = [option for option in module.init_options if option.name == option_name][0]
+            option.value = value
+
         pass
 
 
@@ -859,4 +918,12 @@ if __name__ == "__main__":
     #     response = cli_prompt(opt)
     #     os.environ(opt.env_name) = response
 
+    stuff = s.get_init_options()
+
+    example = {
+        ("react", "MODULE_REACT_USE_TYPESCRIPT"): True,
+        ("react", "MODULE_REACT_APP_NAME"): "example-react-app"
+    }
+
+    s.set_init_options(example)
     s.up()

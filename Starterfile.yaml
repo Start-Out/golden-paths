@@ -29,23 +29,22 @@ tools:
 
 modules:
   postgresql:
-    dest: postgres-s
+    depends_on: randoma
+    dest: postgres
     source:
-      script: docker run postgresql -e $POSTGRES_CONTAINER_NAME -e $POSTGRES_PASSWORD
+      git: git@github.com:Start-Out/path.module-postgresql.git
     scripts:
-      init: echo hello ${POSTGRES_CONTAINER_NAME}!
-      destroy: echo byebye
+      init: cd ./postgres && git-bash ./setup_postgresql.sh
+      destroy: rm -rf ./postgres
   express:
     depends_on:
       - postgresql
-    dest: ${EXPRESS_DEST}
+    dest: express
     source:
-#      git: git@github.com:Start-Out/path.module-express.git
-      script: echo this does not currently work
+      git: git@github.com:Start-Out/path.module-express.git
     scripts:
-#      init: cd ./express && npm install  # REQUIRED
-      init: echo install  # REQUIRED
-      destroy: rm -rf ./express  # REQUIRED
+      init: cd ./express && npm install  # REQUIRED
+      destroy: rm -rf ./express!  # REQUIRED
   react:
     dest: react-s
     init_options:
@@ -57,25 +56,24 @@ modules:
         default: 100
         prompt: What what ${EXPRESS_DEST}! What would you like the React app to be called?
     source:
-      script: this currently does not matter
+      script: echasdfao I am initializing react
     scripts:
 #      init: cd ./startout-react-app && npm test  # REQUIRED
-      init: echo I think that ghosts are ${GHOSTS} # REQUIRED
+      init: echo I think that ghosts are ${MODULE_REACT_APP_NAME} # REQUIRED
       start: cd ./startout-react-app && npm start
-      destroy: rm -rf ./startout-react-app  # REQUIRED
+      destroy: echo I hate Windows!  # REQUIRED
   random:
     depends_on: express
     dest: needy
     source:
-      script: echo hi
+      script: echo I am called random
     scripts:
       init: echo hi
       destroy: echo hi
   randoma:
-    depends_on: express
     dest: needy12
     source:
-      script: echo hi
+      script: echo I am called randoma which is different
     scripts:
       init: echo hi
       destroy: echo hi
