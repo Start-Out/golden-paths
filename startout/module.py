@@ -1,5 +1,4 @@
 import os
-import os
 import platform
 import shutil
 import subprocess
@@ -209,6 +208,13 @@ class ScriptModule(Module):
                 return True
 
     def initialize_bash(self):
+        """
+        DEPRECATED
+
+        Attempts to work on Windows
+
+        :return:
+        """
         _os = platform.system().lower()
         windows = _os in ["windows", "win32"]
 

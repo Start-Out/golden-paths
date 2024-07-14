@@ -56,6 +56,12 @@ class Starter:
     The Starter class is used to install modules and tools required for a project. It allows for easy management of
     module and tool dependencies.
 
+    Use:
+        1. use parse_starterfile on a valid Starterfile.yaml to generate a Starter
+        2. use Starter.get_init_options() to collect any init options that the Starterfile may have
+        3. use Starter.set_init_options() to set any init options
+        4. use Starter.up() to perform the initialization of the project
+
     Attributes:
         starterfile_schema (Schema): Schema definition for the starter file.
 
