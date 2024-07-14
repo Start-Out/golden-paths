@@ -46,7 +46,7 @@ modules:
       init: cd ./express && npm install  # REQUIRED
       destroy: rm -rf ./express!  # REQUIRED
   react:
-    dest: react-s
+    dest: react
     init_options:
       - env_name: MODULE_REACT_USE_TYPESCRIPT
         default: true  # Type can be interpolated from the type of default
@@ -56,7 +56,9 @@ modules:
         default: 100
         prompt: What what ${EXPRESS_DEST}! What would you like the React app to be called?
     source:
-      script: echasdfao I am initializing react
+      script: |  # KNOWN ISSUE, Windows only runs the first line, and does not get the exit code of spawned bash subprocesses
+        echo I won\'t fail
+        exit 1
     scripts:
 #      init: cd ./startout-react-app && npm test  # REQUIRED
       init: echo I think that ghosts are ${MODULE_REACT_APP_NAME} # REQUIRED
