@@ -1,0 +1,40 @@
+tools:
+  tool:
+    scripts:
+      check: exit 0
+      install: exit 0
+      uninstall: exit 0
+
+modules:
+  air:
+    depends_on: fire
+    dest: path/to/enlightenment
+    source:
+      script: exit 0
+    scripts:
+      init: exit 0
+      destroy: exit 0
+  fire:
+    depends_on: earth
+    dest: path/to/power
+    source:
+      script: exit 0
+    scripts:
+      init: exit 0
+      destroy: exit 0
+  earth:
+    depends_on: water
+    dest: path/to/strength
+    source:
+      script: exit 0
+    scripts:
+      init: exit 0
+      destroy: exit 0
+  water:
+    depends_on: air
+    dest: path/to/peace
+    source:
+      script: exit 0
+    scripts:
+      init: exit 0
+      destroy: exit 0

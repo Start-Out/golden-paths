@@ -115,6 +115,9 @@ class Module:
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
 
+    def __hash__(self):
+        return hash((self.name, self.dest, self.source, str(self.dependencies), str(self.scripts), str(self.init_options)))
+
     def run(self, script: str, print_output: bool = False) -> tuple[str, int]:
         """
         Runs a script with environment variable substitutions.

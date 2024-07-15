@@ -68,7 +68,7 @@ class Tool:
         }
     )
 
-    def __init__(self, name: str, dependencies: list[str], scripts: dict[str, str or dict[str, str]]):
+    def __init__(self, name: str, dependencies: list[str] or None, scripts: dict[str, str or dict[str, str]]):
         """
         Initializes a Tool with the given name, dependencies, and scripts.
 
@@ -91,6 +91,9 @@ class Tool:
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash((self.name, str(self.dependencies), str(self.scripts)))
 
     def run(self, script: str) -> tuple[str, int]:
         """
