@@ -8,7 +8,23 @@ import tempfile
 from schema import Schema, And, Or, Optional, Use
 
 from startout.init_option import InitOption
-from startout.util import replace_env, run_script_with_env_substitution
+from startout.util import replace_env, run_script_with_env_substitution, get_script
+
+
+def check_for_key(name: str, key: str, scripts: dict):
+    all_platform_keys = [platforms for platforms in scripts.keys() if platforms in ["windows", "mac", "linux"]]
+
+    # The key must be in the top level (not platform-specific) unless it is specified in each platform-specific set
+    if key not in scripts.keys() and len(all_platform_keys) != 3:
+        raise TypeError(f"No '{key}' script defined for module \"{name}\". Failed to create Module.")
+    elif len(all_platform_keys) == 3:
+        missing_platforms = []
+        for _platform in all_platform_keys:
+            if key not in scripts[_platform].keys():
+                missing_platforms.append(_platform)
+        if len(missing_platforms) > 0:
+            raise TypeError(
+                f"Script 'init' not fully defined for module \"{name}\" (missing {missing_platforms}). Failed to create Module.")
 
 
 class Module:
@@ -32,6 +48,22 @@ class Module:
         init_options (list[dict]): Initialization options for the module. (Optional)
 
     """
+    module_scripts_schema = Schema(
+        Or(
+            {
+                Optional(str): And(str),
+                Optional("windows"): {
+                    Optional(str): And(str)
+                },
+                Optional("mac"): {
+                    Optional(str): And(str)
+                },
+                Optional("linux"): {
+                    Optional(str): And(str)
+                },
+            },
+        )
+    )
     module_schema = Schema(
         {
             "dest": And(str, Use(replace_env)),
@@ -40,7 +72,7 @@ class Module:
                     Or("git", "script", only_one=True): str
                 }
             ),
-            "scripts": And(dict, len),
+            "scripts": module_scripts_schema,
             Optional("depends_on"): Or(str, list[str]),
             Optional("init_options"): list[Schema(
                 {
@@ -65,9 +97,9 @@ class Module:
         :param dependencies: (optional) A list of module names that this module depends on. Defaults to None.
         :param init_options: (optional) Additional options for module initialization. Defaults to None.
         """
-        if "init" not in scripts.keys():
+        if get_script("init", scripts, name) is None:
             raise TypeError(f"No 'init' script defined for module \"{name}\". Failed to create Module.")
-        if "destroy" not in scripts.keys():
+        if get_script("destroy", scripts, name) is None:
             raise TypeError(f"No 'destroy' script defined for module \"{name}\". Failed to create Module.")
 
         self.name = name
@@ -88,7 +120,7 @@ class Module:
         if script not in self.scripts:
             raise ValueError(f"Module \"{self.name}\" does not have script '{script}' in {list(self.scripts.keys())}")
 
-        response, code = run_script_with_env_substitution(self.scripts[script])
+        response, code = run_script_with_env_substitution(get_script(script, self.scripts, self.name))
 
         if print_output and type(response) is str and len(response.strip()) > 0:
             print(f".... [{self.name}.{script}]: {response.strip()}")
@@ -164,11 +196,11 @@ class GitModule(Module):
         cmd = [
             "git",
             "clone",
-            "--progress",
+            # "--progress",
             self.source,
             self.dest
         ]
-        result = subprocess.run(cmd, shell=True, check=True, text=True,
+        result = subprocess.run(cmd, text=True,
                                 capture_output=True)  # TODO hoist the feedback to the terminal, especially if it can be displayed by the CLI which enwraps it
 
         if result.returncode != 0:
@@ -206,47 +238,6 @@ class ScriptModule(Module):
             else:
                 print(f".. SUCCESS [{self.name}]: Initialized module {self.name}")
                 return True
-
-    def initialize_bash(self):
-        """
-        DEPRECATED
-
-        Attempts to work on Windows
-
-        :return:
-        """
-        _os = platform.system().lower()
-        windows = _os in ["windows", "win32"]
-
-        if windows and shutil.which("git-bash") is None:
-            raise OSError(f"Windows detected and Git Bash is not installed. Please install Git Bash and try again.")
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            _tmp_filename = os.path.join(tmpdir, "script.sh")
-            with open(_tmp_filename, "w") as f:
-                f.write(self.source)
-
-            _script = [
-                "git-bash" if windows else "bash",
-                _tmp_filename
-            ]
-
-            result = subprocess.run(_script, check=False, text=True, capture_output=True)
-            print(f"Return code: {result.returncode}")
-            print(f"stdout: {result.stdout}")
-            print(f"stderr: {result.stderr}")
-            code = result.returncode
-            response = result.stdout
-
-        if code != 0:
-            print(f".. FAILURE [{self.name}]: {response}", file=sys.stderr)
-            return False
-        else:
-            msg = response.strip()
-            if len(msg) > 0:
-                print(f".... [{self.name}.source.script]: {response.strip()}")
-            print(f".. SUCCESS [{self.name}]: Ran script for module {self.name}")
-            return True
 
 
 def create_module(module: dict, name: str):

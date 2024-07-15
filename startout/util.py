@@ -7,6 +7,45 @@ import subprocess
 import sys
 
 
+def get_script(script: str, scripts_dict: dict[str, str], name: str) -> str or None:
+    """
+    Get the script based on the platform and provided parameters.
+
+    :param script: The name of the script to retrieve.
+    :param scripts_dict: A dictionary containing the scripts for different platforms.
+    :param name: The name of the tool.
+    :return: The script for the given platform and script name, or None if not found.
+    :raises ValueError: If the tool does not have the specified script in any platform.
+    """
+    _os = platform.system().lower()
+    windows = _os in ["windows", "win32"]
+    macos = _os in ["darwin"]
+
+    _script = None
+
+    # Default to top-level definition of the script (not platform-dependent)
+    if script in scripts_dict:
+        _script = scripts_dict[script]
+
+    # Any platform-dependent scripts will override the top-level definition
+    if type(scripts_dict) is dict:
+        if windows and "windows" in scripts_dict.keys():
+            if script in scripts_dict["windows"]:
+                _script = scripts_dict["windows"][script]
+        elif macos and "mac" in scripts_dict.keys():
+            if script in scripts_dict["mac"]:
+                _script = scripts_dict["mac"][script]
+        elif (not windows and not macos) and "linux" in scripts_dict.keys():
+            if script in scripts_dict["linux"]:
+                _script = scripts_dict["linux"][script]
+
+    if _script is None:
+        raise ValueError(f"Tool \"{name}\" does not have script '{script}' "
+                         f"in {list(scripts_dict.keys())}")
+
+    return _script
+
+
 def type_tool(type_str: str) -> type or None:
     """
     Return the corresponding Python type based on the input string.
@@ -103,6 +142,6 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False) -> 
     except OSError as e:
         return f"{e}", 1
     except subprocess.CalledProcessError as e:
-        return f"{e.stdout}\n{e.stderr}", e.returncode
+        return f"{e.stderr.strip()}", e.returncode
 
-    return result.stdout, result.returncode
+    return str(result.stdout), result.returncode

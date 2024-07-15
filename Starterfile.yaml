@@ -44,7 +44,9 @@ modules:
       git: git@github.com:Start-Out/path.module-express.git
     scripts:
       init: cd ./express && npm install  # REQUIRED
-      destroy: rm -rf ./express!  # REQUIRED
+      destroy: rm -rf ./express  # REQUIRED
+      windows:
+        destroy: rm ./express -r -fo
   react:
     dest: react
     init_options:
@@ -58,7 +60,7 @@ modules:
     source:
       script: |
         echo "I will not fail"
-        exit 1
+        exit 0
     scripts:
 #      init: cd ./startout-react-app && npm test  # REQUIRED
       init: echo I think that ghosts are ${MODULE_REACT_APP_NAME} # REQUIRED
@@ -72,6 +74,9 @@ modules:
     scripts:
       init: echo hi
       destroy: echo hi
+      mac:
+        init: |  # Multilines always run as shell
+          echo "Oh dang this is a Mac!" > mac.txt
   randoma:
     dest: needy12
     source:
