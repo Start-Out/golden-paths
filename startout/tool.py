@@ -82,6 +82,8 @@ class Tool:
             raise TypeError(f"No 'install' script defined for module \"{name}\". Failed to create Module.")
         if get_script("uninstall", scripts, name=name) is None:
             raise TypeError(f"No 'uninstall' script defined for module \"{name}\". Failed to create Module.")
+        if get_script("check", scripts, name=name) is None:
+            raise TypeError(f"No 'check' script defined for module \"{name}\". Failed to create Module.")
 
         self.name = name
         self.dependencies = dependencies
