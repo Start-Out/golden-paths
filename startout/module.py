@@ -90,7 +90,7 @@ class Module:
 
         response, code = run_script_with_env_substitution(self.scripts[script])
 
-        if print_output and len(response.strip()) > 0:
+        if print_output and type(response) is str and len(response.strip()) > 0:
             print(f".... [{self.name}.{script}]: {response.strip()}")
 
         return response, code
@@ -195,7 +195,7 @@ class ScriptModule(Module):
             return False
         else:
             print(f".... PROGRESS [{self.name}]: Ran script for module {self.name}")
-            if len(msg.strip()) > 0:
+            if type(msg) is str and len(msg.strip()) > 0:
                 print(f".... [{self.name}.source.script]: {msg.strip()}")
             print(f".... PROGRESS [{self.name}]: Running init script")
             msg, code = self.run("init", print_output=True)

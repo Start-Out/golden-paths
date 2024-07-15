@@ -56,8 +56,8 @@ modules:
         default: 100
         prompt: What what ${EXPRESS_DEST}! What would you like the React app to be called?
     source:
-      script: |  # KNOWN ISSUE, Windows only runs the first line, and does not get the exit code of spawned bash subprocesses
-        echo I won\'t fail
+      script: |
+        echo "I will not fail"
         exit 1
     scripts:
 #      init: cd ./startout-react-app && npm test  # REQUIRED
@@ -75,7 +75,9 @@ modules:
   randoma:
     dest: needy12
     source:
-      script: echo I am called randoma which is different
+      script: echo "I am called randoma which is different"
     scripts:
-      init: echo hi
-      destroy: echo hi
+      init: |
+        mkdir proof
+        echo "It is here" > proof/pudding.txt
+      destroy: rm proof
