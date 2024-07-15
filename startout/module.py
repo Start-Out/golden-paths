@@ -1,9 +1,6 @@
-import os
-import platform
 import shutil
 import subprocess
 import sys
-import tempfile
 
 from schema import Schema, And, Or, Optional, Use
 
@@ -14,17 +11,23 @@ from startout.util import replace_env, run_script_with_env_substitution, get_scr
 def check_for_key(name: str, key: str, scripts: dict):
     all_platform_keys = [platforms for platforms in scripts.keys() if platforms in ["windows", "mac", "linux"]]
 
-    # The key must be in the top level (not platform-specific) unless it is specified in each platform-specific set
-    if key not in scripts.keys() and len(all_platform_keys) != 3:
-        raise TypeError(f"No '{key}' script defined for module \"{name}\". Failed to create Module.")
-    elif len(all_platform_keys) == 3:
-        missing_platforms = []
-        for _platform in all_platform_keys:
-            if key not in scripts[_platform].keys():
-                missing_platforms.append(_platform)
-        if len(missing_platforms) > 0:
-            raise TypeError(
-                f"Script 'init' not fully defined for module \"{name}\" (missing {missing_platforms}). Failed to create Module.")
+    # The key must be in the top level (not platform-specific) unless it is specified in EACH platform-specific set
+
+    # If the key is not at the top level...
+    if key not in scripts.keys():
+        # ...and the three supported platforms are not also all specified...
+        if len(all_platform_keys) != 3:
+            # ...then it is impossible for the script to have been fully defined.
+            raise TypeError(f"No '{key}' script defined for module \"{name}\". Failed to create Module.")
+        else:
+            # If all platforms have a set of scripts, make sure that this script is in each of them
+            missing_platforms = []
+            for _platform in all_platform_keys:
+                if key not in scripts[_platform].keys():
+                    missing_platforms.append(_platform)
+            if len(missing_platforms) > 0:
+                raise TypeError(
+                    f"Script 'init' not fully defined for module \"{name}\" (missing {missing_platforms}). Failed to create Module.")
 
 
 class Module:
@@ -129,7 +132,7 @@ class Module:
 
     def initialize(self):
         """
-        Run the Tool's 'init' script.
+        Run the Module's 'init' script.
 
         :return: True if the response code is 0, False otherwise.
         """
@@ -144,7 +147,7 @@ class Module:
 
     def destroy(self):
         """
-        Run the Tool's 'destroy' script.
+        Run the Module's 'destroy' script.
 
         :return: True if the response code is 0, False otherwise.
         """

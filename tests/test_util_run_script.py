@@ -25,7 +25,7 @@ class TestRunScriptWithEnvSubstitution(unittest.TestCase):
     def test_run_script_with_env_substitution_unavailable_command(self, mock_split, mock_which, mock_run):
         mock_split.return_value = ["unavailable_command"]
         mock_which.return_value = None
-        mock_run.side_effect = OSError("unavailable_command not found")
+        mock_run.return_value = subprocess.CompletedProcess([], stdout="unavailable_command not found", returncode=1)
 
         output, returncode = util.run_script_with_env_substitution("unavailable_command", True)
         self.assertEqual(output, "unavailable_command not found")

@@ -40,8 +40,8 @@ def get_script(script: str, scripts_dict: dict[str, str], name: str) -> str or N
                 _script = scripts_dict["linux"][script]
 
     if _script is None:
-        raise ValueError(f"Tool \"{name}\" does not have script '{script}' "
-                         f"in {list(scripts_dict.keys())}")
+        raise TypeError(f"Tool \"{name}\" does not have script '{script}' "
+                        f"in {list(scripts_dict.keys())}")
 
     return _script
 
@@ -139,8 +139,6 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False) -> 
                 text=True,
                 capture_output=True
             )
-    except OSError as e:
-        return f"{e}", 1
     except subprocess.CalledProcessError as e:
         return f"{e.stderr.strip()}", e.returncode
 

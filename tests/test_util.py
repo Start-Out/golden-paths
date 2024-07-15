@@ -72,7 +72,7 @@ class TestGetScript(unittest.TestCase):
         name = "script_tool"
         expected_result = None
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             util.get_script(script, scripts_dict, name)
 
 

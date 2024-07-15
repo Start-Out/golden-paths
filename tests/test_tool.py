@@ -25,7 +25,7 @@ def test_init_missing_install_script():
         "uninstall": "echo uninstall",
     }
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         Tool(name, dependencies, scripts)
 
 
@@ -36,7 +36,7 @@ def test_init_missing_uninstall_script():
         "install": "echo install",
     }
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         Tool(name, dependencies, scripts)
 
 
@@ -45,7 +45,7 @@ def test_init_no_scripts():
     dependencies = ["dep1", "dep2"]
     scripts = {}
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         Tool(name, dependencies, scripts)
 
 
