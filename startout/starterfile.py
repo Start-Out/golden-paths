@@ -101,6 +101,15 @@ class Starter:
         self.module_dependencies = module_dependencies
         self.tool_dependencies = tool_dependencies
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            modules_match = self.modules == other.modules
+            tools_match = self.tools == other.tools
+            module_deps_match = self.module_dependencies == other.module_dependencies
+            tool_deps_match = self.tool_dependencies == other.tool_dependencies
+
+            return modules_match and tools_match and module_deps_match and tool_deps_match
+
     def up(self, teardown_on_failure=True, fail_early=True):
         """
         :param teardown_on_failure: A boolean flag to determine whether to perform teardown operations if any failure occurs during the method execution. Default value is `True`.
@@ -349,9 +358,10 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
     loaded = yaml.safe_load(starterfile_stream)
     Starter.starterfile_schema.validate(loaded)
 
-    for env_file in loaded["env_file"]:
-        _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
-        load_dotenv(str(_path))
+    if "env_files" in loaded.keys():
+        for env_file in loaded["env_file"]:
+            _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
+            load_dotenv(str(_path))
 
     tools = []
 

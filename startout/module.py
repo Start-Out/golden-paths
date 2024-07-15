@@ -112,6 +112,9 @@ class Module:
         self.dependencies = dependencies
         self.init_options = init_options
 
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
     def run(self, script: str, print_output: bool = False) -> tuple[str, int]:
         """
         Runs a script with environment variable substitutions.
