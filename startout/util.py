@@ -1,4 +1,5 @@
 import os
+import platform
 import re
 import shlex
 import shutil
@@ -74,12 +75,24 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False) -> 
         if shutil.which(_script[0]) is None or multiline:
             if verbose:
                 print(f"'{_script[0]}' is not installed. Trying script in shell.", file=sys.stderr)
-            result = subprocess.run(
-                substituted_script,
-                shell=True,
-                text=True,
-                capture_output=True
-            )
+
+            _os = platform.system().lower()
+            windows = _os in ["windows", "win32"]
+
+            if windows:
+                windows_shell = "pwsh" if shutil.which("pwsh") is not None else "powershell"
+                result = subprocess.run([
+                    windows_shell,
+                    "-Command",
+                    substituted_script
+                ])
+            else:
+                result = subprocess.run(
+                    substituted_script,
+                    shell=True,
+                    text=True,
+                    capture_output=True
+                )
         # Else, run the shlex'd cmd list
         else:
             result = subprocess.run(
