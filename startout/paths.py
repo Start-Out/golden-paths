@@ -115,16 +115,16 @@ def new_repo_owner_interactive() -> str:
         try:
             result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         except FileNotFoundError as e:
+            progress.update(task1, description="Failure: gh auth could not be validated", completed=True)
             console.file = sys.stderr  # set console output to stderr
             console.print(f"Failed to run `gh auth status`, make sure `gh` is installed!\n\t{e}", style='error')
             sys.exit(1)
-
-        progress.update(task1, description="Success: gh auth status validated", completed=True)
 
         valid_owners = []
 
         # Exit if gh auth fails, necessary for the rest of the process
         if result.returncode != 0:
+            progress.update(task1, description="Failure: gh auth could not be validated", completed=True)
             console.file = sys.stderr  # set console output to stderr
             if result.stderr is not None:
                 console.print(result.stderr.decode(), style='error')
@@ -132,6 +132,8 @@ def new_repo_owner_interactive() -> str:
                 console.print(result.stdout.decode())
             console.print("Unable to authenticate with GitHub, please ensure you have completed `gh auth login`", style='bold')
             sys.exit(1)
+
+        progress.update(task1, description="Success: gh auth status validated", completed=True)
 
         # Parse username from gh auth status
         feedback = result.stdout.decode()
@@ -157,7 +159,7 @@ def new_repo_owner_interactive() -> str:
             console.file = sys.stderr  # set console output to stderr
             console.print(result.stderr.decode(), style='error')
             console.print("Unable to collect valid orgs, please check `gh auth status`", style='error')
-            progress.update(task2, description="ERROR: Failed to collect orgs", completed=True)
+            progress.update(task2, description="Failure: Failed to collect orgs", completed=True)
             console.file = sys.stdout  # set console output back to stdout
 
         else:
