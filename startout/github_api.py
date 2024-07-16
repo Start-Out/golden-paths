@@ -46,12 +46,12 @@ def create_repo_from_temp(
 
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-        progress.update(task, description="Done", completed=True)
-
-    if result.returncode == 0:
-        console.print(f"{result.stdout.decode()}", style='success')
-        return os.path.join(os.getcwd(), repo_name)
-    else:
-        console.file = sys.stderr #set console output to stderr
-        console.print(f"ERROR: {result.stdout.decode()}", style='error')
-        return False
+        if result.returncode == 0:
+            progress.update(task, description=f"Success: {template} has been cloned.", completed=True)
+            console.print(f"{result.stdout.decode()}", style='success')
+            return os.path.join(os.getcwd(), repo_name)
+        else:
+            progress.update(task, description=f"Failure: {template} has not been cloned.")
+            console.file = sys.stderr #set console output to stderr
+            console.print(f"ERROR: {result.stdout.decode()}", style='error')
+            return False
