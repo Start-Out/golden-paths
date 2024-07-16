@@ -48,10 +48,14 @@ def create_repo_from_temp(
 
         if result.returncode == 0:
             progress.update(task, description=f"Success: {template} has been cloned.", completed=True)
+            progress.refresh()
+            progress.stop()
             console.print(f"{result.stdout.decode()}", style='success')
             return os.path.join(os.getcwd(), repo_name)
         else:
-            progress.update(task, description=f"Failure: {template} has not been cloned.")
+            progress.update(task, description=f"Failure: {template} has not been cloned.", completed=True)
+            progress.refresh()
+            progress.stop()
             console.file = sys.stderr #set console output to stderr
             console.print(f"ERROR: {result.stdout.decode()}", style='error')
             return False
