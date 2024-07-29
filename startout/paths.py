@@ -4,10 +4,26 @@ import subprocess
 import sys
 from typing import Optional
 
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.theme import Theme
+
+
 import typer
 from typing_extensions import Annotated
 
-import startout.github_api as gh_api
+import github_api as gh_api
+
+
+custom_theme = Theme({
+    "input_prompt": "bold cyan",
+    "announcement": "bold yellow",
+    "success": "bold green",
+    "error": "bold red",
+    "bold": "bold",
+})
+
+console = Console(theme=custom_theme)
 
 # Initialize the typer CLI
 startout_paths_app = typer.Typer(name="startout-paths")
@@ -41,8 +57,9 @@ def initialize_path_instance(
     elif "/" not in template:
 
         # Interactive mode defaults to using StartOut's Path templates
-        result = input(
-            f"Please provide the owner of the '{template}' Path (case insensitive) [default: Start-Out]: "
+        result = console.input(
+            f"[input_prompt]Please provide the owner of the '{template}' "
+            f"Path (case insensitive) \\[default: Start-Out]: [/]",
         )
         if len(result) == 0 or result.lower() == "start-out":
 
@@ -53,14 +70,14 @@ def initialize_path_instance(
             template_owner = result
             template_name = template
 
-        print(f"INFO: Using template {template_owner}/{template_name}")
+        console.print(f"INFO: Using template {template_owner}/{template_name}", style='announcement')
 
     else:
-        print(
-            f"Invalid Path template '{template}', please specify one of the following:\n"
+        console.print(
+            f"[error]Invalid Path template '{template}', please specify one of the following:[/]\n"
             f"- A fully-formed GitHub repository name (e.g. Owner/Repository)\n"
             f"- A non-path to be defined interactively (e.g. express-react-postgresql)\n"
-            f"  * NOTE: Non-paths will trigger an interactive mode which provides helpful defaults"
+            f"  * [bold]NOTE[/]: Non-paths will trigger an interactive mode which provides helpful defaults"
         )
         sys.exit(1)
 
@@ -77,68 +94,89 @@ def initialize_path_instance(
     )
 
     if not initialized_repo_path:
-        print("Failed to initialize new Path, exiting now.", file=sys.stderr)
+        console.file = sys.stderr  # set console output to stderr
+        console.print("Failed to initialize new Path, exiting now.", style='error')
+        console.file = sys.stdout  # set console output back to stdout
+
     else:
         pass
         # initialize frameworks using Starterfile
 
 
 def new_repo_owner_interactive() -> str:
-    # Collect valid options for the user using `gh auth status` and `gh org list`
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}")) as progress:
 
-    # Get the current username
-    print("Checking `gh auth status`...")
 
-    try:
-        result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    except FileNotFoundError as e:
-        print(f"Failed to run `gh auth status`, make sure `gh` is installed!\n\t{e}", file=sys.stderr)
-        sys.exit(1)
+        # Collect valid options for the user using `gh auth status` and `gh org list`
 
-    valid_owners = []
+        # Get the current username
+        task1 = progress.add_task(f"Checking `gh auth status`", total=None)
 
-    # Exit if gh auth fails, necessary for the rest of the process
-    if result.returncode != 0:
-        if result.stderr is not None:
-            print(result.stderr.decode(), file=sys.stderr)
-        if result.stdout is not None:
-            print(result.stdout.decode(), file=sys.stderr)
-        print("Unable to authenticate with GitHub, please ensure you have completed `gh auth login`", file=sys.stderr)
-        sys.exit(1)
+        try:
+            result = subprocess.run(['gh', 'auth', 'status'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        except FileNotFoundError as e:
+            progress.update(task1, description="Failure: gh auth could not be validated", completed=True)
+            console.file = sys.stderr  # set console output to stderr
+            console.print(f"Failed to run `gh auth status`, make sure `gh` is installed!\n\t{e}", style='error')
+            sys.exit(1)
 
-    # Parse username from gh auth status
-    feedback = result.stdout.decode()
-    username = re.findall(r"(?<=account )(.*)(?= \(keyring\))", feedback)
+        valid_owners = []
 
-    if len(username) != 1:
-        print("Problem parsing username from `gh auth status`, output was:", file=sys.stderr)
-        print(feedback, file=sys.stderr)
-        sys.exit(1)
+        # Exit if gh auth fails, necessary for the rest of the process
+        if result.returncode != 0:
+            progress.update(task1, description="Failure: gh auth could not be validated", completed=True)
+            console.file = sys.stderr  # set console output to stderr
+            if result.stderr is not None:
+                console.print(result.stderr.decode(), style='error')
+            if result.stdout is not None:
+                console.print(result.stdout.decode())
+            console.print("Unable to authenticate with GitHub, please ensure you have completed `gh auth login`", style='bold')
+            sys.exit(1)
 
-    # If username is parsed, add to possible owners
-    valid_owners.append(username[0])
+        progress.update(task1, description="Success: gh auth status validated", completed=True)
 
-    # Get authorized orgs via gh org list
-    print("Checking `gh org list`...")
-    result = subprocess.run(['gh', 'org', 'list'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-    # Do not exit, but warn the user that this check failed
-    if result.returncode != 0:
-        print(result.stderr.decode(), file=sys.stderr)
-        print("Unable to collect valid orgs, please check `gh auth status`", file=sys.stderr)
-    else:
-        # Parse orgs from command
+        # Parse username from gh auth status
         feedback = result.stdout.decode()
-        lines = feedback.splitlines()
+        username = re.findall(r"(?<=account )(.*)(?= \(keyring\))", feedback)
 
-        valid_owners.extend(lines)
+        if len(username) != 1:
+            console.file = sys.stderr  # set console output to stderr
+            console.print("Problem parsing username from `gh auth status`, output was:", style='error')
+            console.print(feedback, style='error')
+            sys.exit(1)
+
+        # If username is parsed, add to possible owners
+        valid_owners.append(username[0])
+
+        # Get authorized orgs via gh org list
+        task2 = progress.add_task(f"Checking `gh org list`", total=None)
+
+
+        result = subprocess.run(['gh', 'org', 'list'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        # Do not exit, but warn the user that this check failed
+        if result.returncode != 0:
+            console.file = sys.stderr  # set console output to stderr
+            console.print(result.stderr.decode(), style='error')
+            console.print("Unable to collect valid orgs, please check `gh auth status`", style='error')
+            progress.update(task2, description="Failure: Failed to collect orgs", completed=True)
+            console.file = sys.stdout  # set console output back to stdout
+
+        else:
+            # Parse orgs from command
+            feedback = result.stdout.decode()
+            lines = feedback.splitlines()
+
+            valid_owners.extend(lines)
+            progress.update(task2, description="Success: gh orgs collected", completed=True)
+
 
     # All potential new owners are collected, prompt user to choose one
-    print("Please choose from the following list for the new repo owner:")
+    console.print("Please choose from the following list for the new repo owner:", style='input_prompt')
 
     i = 0
     for owner in valid_owners:
-        print(f"[{i}] - {owner}")
+        console.print(f"[{i}] - [cyan]{owner}[/]")
         i += 1
 
     choice = None
@@ -146,10 +184,13 @@ def new_repo_owner_interactive() -> str:
     while choice is None:
         if flag:
             # Print the invalid feedback every time after the first ask
-            print("Invalid choice", file=sys.stderr)
+            console.file = sys.stderr  # set console output to stderr
+            console.print("Invalid choice", style='error')
+            console.file = sys.stdout  # set console output back to stdout
+
         flag = True
 
-        choice = input("> ")
+        choice = console.input("> ")
 
         try:
             choice = int(choice)
@@ -168,36 +209,37 @@ def new_repo_owner_interactive() -> str:
 def initialize_repo(
     template_owner: str, template_name: str, new_repo_owner: str, new_repo_name: str, public: bool = True
 ):
-    print("Fetching and cloning Path template...")
-
     # If any environment variables are missing, prompt the user for them interactively
 
     # TODO Use some localization scheme for all feedback
     if new_repo_owner is None:
-        new_repo_owner = input(
-            "Who should be the owner of the new repository?\n"
-            "(Must be a user/org authorized with `gh `auth`): "
+        new_repo_owner = console.input(
+            "[input_prompt]Who should be the owner of the new repository?[/]\n"
+            "[italic cyan](Must be a user/org authorized with `gh `auth`): [/]"
         )
     if new_repo_name is None:
-        new_repo_name = input(
-            "What should the name of the new repository be?\n"
-            "(Make sure the name isn't already taken): "
+        new_repo_name = console.input(
+            "[input_prompt]What should the name of the new repository be?[/]\n"
+            "[italic cyan](Make sure the name isn't already taken): [/]"
         )
     if template_owner is None:
-        template_owner = input("\nWho is the owner of the Path template?: ")
+        template_owner = console.input("\n[input_prompt]Who is the owner of the Path template?: [/]")
 
     if template_name is None:
-        template_name = input("\nWhat is the name of the Path template?: ")
+        template_name = console.input("\n[input_prompt]What is the name of the Path template?: [/]")
 
     result = gh_api.create_repo_from_temp(
         new_repo_owner, new_repo_name, f"{template_owner}/{template_name}", public
     )
 
     if not result:
-        print("Failed to clone Path template.", file=sys.stderr)
+        console.file = sys.stderr  # set console output to stderr
+        console.print("Failed to clone Path template.", style='error')
+        console.file = sys.stdout  # set console output back to stdout
+
     else:
         # Update path to the project root if successful
-        print(f"Cloned new Path to {result}")
+        console.print(f"Cloned new Path to [italic]{result}[/]", style='success')
         os.environ["NEW_PATH_ROOT"] = result
 
     return result
