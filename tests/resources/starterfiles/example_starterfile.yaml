@@ -1,0 +1,88 @@
+# Looks at the same level as this Starterfile for files
+env_file: # TODO default behavior
+  - .env
+  - prod.env
+
+tools:
+  nodejs:
+#    optional: False    # Do not need to specify non-optional, defaults to required
+    scripts:
+      check: |
+        node --version
+        npm --version
+      windows:
+        install: scoop install nodejs
+        uninstall: scoop uninstall nodejs
+      mac:
+        install: brew install node
+        uninstall: brew uninstall node
+      linux:
+        install: sudo apt install npm
+        uninstall: sudo apt remove npm
+        check: npm --version
+  pnpm:
+    depends_on: nodejs
+    scripts:
+      install: npm install -g pnpm
+      uninstall: npm uninstall -g pnpm
+      check: pnpm --version
+
+modules:
+  postgresql:
+    depends_on: randoma
+    dest: postgres
+    source:
+      git: git@github.com:Start-Out/path.module-postgresql.git
+    scripts:
+      init: cd ./postgres && git-bash ./setup_postgresql.sh
+      destroy: rm -rf ./postgres
+  express:
+    depends_on:
+      - postgresql
+    dest: express
+    source:
+      git: git@github.com:Start-Out/path.module-express.git
+    scripts:
+      init: cd ./express && npm install  # REQUIRED
+      destroy: rm -rf ./express  # REQUIRED
+      windows:
+        destroy: rm ./express -r -fo
+  react:
+    dest: react
+    init_options:
+      - env_name: MODULE_REACT_USE_TYPESCRIPT
+        default: true  # Type can be interpolated from the type of default
+        prompt: Would you like to use TypeScript?
+      - env_name: MODULE_REACT_APP_NAME
+        type: string  # Or you can specify the type
+        default: 100
+        prompt: What what ${EXPRESS_DEST}! What would you like the React app to be called?
+    source:
+      script: |
+        echo "I will fail"
+        exit 0
+    scripts:
+#      init: cd ./startout-react-app && npm test  # REQUIRED
+      init: echo I think that ghosts are ${MODULE_REACT_APP_NAME} # REQUIRED
+      start: cd ./startout-react-app && npm start
+      destroy: echo I hate Windows!  # REQUIRED
+  random:
+    depends_on: express
+    dest: needy
+    source:
+      script: echo I am called random
+    scripts:
+      init: echo hi
+      destroy: echo hi
+      mac:
+        init: |  # Multilines always run as shell
+          echo "Oh dang this is a Mac!" > mac.txt
+  randoma:
+    dest: needy12
+    source:
+      script: echo "I am called randoma which is different"
+    scripts:
+      init: |
+        mkdir proof
+        echo "It is here" > proof/pudding.txt
+      destroy: rm proof

@@ -1,0 +1,15 @@
+tools:
+  tool:
+    scripts:
+      check: exit 0
+      install: exit 0
+      uninstall: exit 0
+
+modules:
+  module:
+    dest: path/to/module
+    source:
+      script: exit 0
+    scripts:
+      init: exit 0
+      destroy: exit 0

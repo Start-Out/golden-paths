@@ -1,0 +1,28 @@
+tools:
+  rock:
+    depends_on: paper
+    scripts:
+      check: exit 0
+      install: exit 0
+      uninstall: exit 0
+  paper:
+    depends_on: scissors
+    scripts:
+      check: exit 0
+      install: exit 0
+      uninstall: exit 0
+  scissors:
+    depends_on: rock
+    scripts:
+      check: exit 0
+      install: exit 0
+      uninstall: exit 0
+
+modules:
+  module:
+    dest: path/to/module
+    source:
+      script: exit 0
+    scripts:
+      init: exit 0
+      destroy: exit 0
