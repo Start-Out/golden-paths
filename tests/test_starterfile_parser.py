@@ -9,7 +9,7 @@ from startout.starterfile import parse_starterfile, Starter
 from startout.tool import Tool
 
 # replace this with the path to your test data directory
-TEST_DATA_DIR = "./resources/starterfiles"
+TEST_DATA_DIR = "./tests/resources/starterfiles"
 
 
 # factories for constructing expected Starter objects
