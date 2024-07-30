@@ -43,8 +43,7 @@ jobs:
         env:
           DEBUG: True
         run: |
-          source .venv/bin/activate
-          pytest --cov-report lcov:cov.lcov --cov=todo_or_not
+          poetry run pytest --cov --cov-report=lcov:cov.lcov --cov=startout
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v2.2.3
         with:
