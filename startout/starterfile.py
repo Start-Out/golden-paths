@@ -399,21 +399,3 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
         tool_dependencies=tool_dependencies
     )
 
-
-if __name__ == "__main__":
-    with open("../Starterfile.yaml", "r") as f:
-        s = parse_starterfile(f)
-
-    # for opt in s.get_init_options():
-    #     response = cli_prompt(opt)
-    #     os.environ(opt.env_name) = response
-
-    stuff = s.get_init_options()
-
-    example = {
-        ("react", "MODULE_REACT_USE_TYPESCRIPT"): True,
-        ("react", "MODULE_REACT_APP_NAME"): "example-react-app"
-    }
-
-    s.set_init_options(example)
-    s.up()
