@@ -2,6 +2,19 @@ import os.path
 import shlex
 import subprocess
 import sys
+from rich.console import Console
+from rich.theme import Theme
+from rich.progress import Progress, SpinnerColumn, TextColumn
+
+custom_theme = Theme({
+    "input_prompt": "bold cyan",
+    "announcement": "bold yellow",
+    "success": "bold green",
+    "error": "bold red",
+    "bold": "bold",
+})
+
+console = Console(theme=custom_theme)
 
 
 def create_repo_from_temp(
@@ -26,11 +39,23 @@ def create_repo_from_temp(
     else:
         cmd.append("--private")
 
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    result = ''
 
-    if result.returncode == 0:
-        print(result.stdout.decode())
-        return os.path.join(os.getcwd(), repo_name)
-    else:
-        print(result.stderr.decode(), file=sys.stderr)
-        return False
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}")) as progress:
+        task = progress.add_task(f"Fetching and cloning {template}", total=None)
+
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        if result.returncode == 0:
+            progress.update(task, description=f"Success: {template} has been cloned.", completed=True)
+            progress.refresh()
+            progress.stop()
+            console.print(f"{result.stdout.decode()}", style='success')
+            return os.path.join(os.getcwd(), repo_name)
+        else:
+            progress.update(task, description=f"Failure: {template} has not been cloned.", completed=True)
+            progress.refresh()
+            progress.stop()
+            console.file = sys.stderr #set console output to stderr
+            console.print(f"ERROR: {result.stdout.decode()}", style='error')
+            return False
