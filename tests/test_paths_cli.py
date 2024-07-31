@@ -1,11 +1,8 @@
+import builtins
 import unittest
 from unittest.mock import patch
 
-from startout.paths import prompt_init_option, InitOption
-
-from rich.console import Console
-
-console = Console()
+from startout.paths import prompt_init_option, InitOption, console
 
 
 class TestPromptInitOption(unittest.TestCase):
