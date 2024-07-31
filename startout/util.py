@@ -5,16 +5,38 @@ import shlex
 import shutil
 import subprocess
 import sys
-from typing import List
 
 
 def bool_to_yn(bool_input: bool) -> str:
+    """
+    Converts a boolean value to a 'y' or 'n' string representation.
+
+    :param bool_input: The boolean value to be converted.
+        - True: Represented by 'y'
+        - False: Represented by 'n'
+    :return: The string representation of the boolean value.
+        - 'y' if bool_input is True
+        - 'n' if bool_input is False
+
+    """
     lex = {True: 'y', False: 'n'}
 
     return lex[bool_input]
 
 
 def bool_to_strings(bool_input: bool) -> list[str]:
+    """
+    Converts a boolean value to a list of corresponding strings.
+
+    :param bool_input: The boolean value to be converted.
+    :return: A list of strings representing the boolean value. The list will contain one or more of the following strings:
+        - "yes"
+        - "y"
+        - "true" (if bool_input is True)
+        - "no"
+        - "n"
+        - "false" (if bool_input is False)
+    """
     lex = {
         True: ["yes", "y", "true"],
         False: ["no", "n", "false"],
@@ -24,6 +46,14 @@ def bool_to_strings(bool_input: bool) -> list[str]:
 
 
 def string_to_bool(string_input: str) -> bool or None:
+    """
+    Convert a string representation of boolean to a boolean value.
+
+    :param string_input: The input string to be converted.
+    :type string_input: str
+    :return: The corresponding boolean value or None if the input string is not recognized as boolean.
+    :rtype: bool or None
+    """
     lex = {
         "yes": True, "y": True, "true": True,
         "no": False, "n": False, "false": False,

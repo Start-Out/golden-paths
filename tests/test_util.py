@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch
 
 from startout import util
+from startout.util import bool_to_yn, bool_to_strings, string_to_bool
 
 
 class TestGetScript(unittest.TestCase):
@@ -120,6 +121,26 @@ class TestReplaceEnv(unittest.TestCase):
     def test_replace_env_variable_not_set(self):
         with self.assertRaises(ValueError):
             util.replace_env('Hello ${UNDEFINED_VAR}')
+
+
+class TestBoolConversion(unittest.TestCase):
+
+    def test_bool_to_yn(self):
+        self.assertEqual(bool_to_yn(True), 'y')
+        self.assertEqual(bool_to_yn(False), 'n')
+
+    def test_bool_to_strings(self):
+        self.assertListEqual(bool_to_strings(True), ['yes', 'y', 'true'])
+        self.assertListEqual(bool_to_strings(False), ['no', 'n', 'false'])
+
+    def test_string_to_bool(self):
+        self.assertEqual(string_to_bool('yes'), True)
+        self.assertEqual(string_to_bool('y'), True)
+        self.assertEqual(string_to_bool('true'), True)
+        self.assertEqual(string_to_bool('no'), False)
+        self.assertEqual(string_to_bool('n'), False)
+        self.assertEqual(string_to_bool('false'), False)
+        self.assertEqual(string_to_bool('unknown'), None)
 
 
 if __name__ == '__main__':
