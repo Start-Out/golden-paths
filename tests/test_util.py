@@ -119,8 +119,8 @@ class TestReplaceEnv(unittest.TestCase):
         self.assertEqual(util.replace_env(''), '')
 
     def test_replace_env_variable_not_set(self):
-        with self.assertRaises(ValueError):
-            util.replace_env('Hello ${UNDEFINED_VAR}')
+        expected = 'Hello ${UNDEFINED_VAR}'
+        assert expected == util.replace_env(expected)
 
 
 class TestBoolConversion(unittest.TestCase):

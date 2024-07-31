@@ -4,15 +4,14 @@ import subprocess
 import sys
 from typing import Optional
 
+import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.theme import Theme
-
-import typer
 from typing_extensions import Annotated
 
-import github_api as gh_api
-import util
+import startout.github_api as gh_api
+from startout import util
 from startout.init_option import InitOption
 from startout.starterfile import parse_starterfile
 
