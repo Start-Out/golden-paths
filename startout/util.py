@@ -5,6 +5,31 @@ import shlex
 import shutil
 import subprocess
 import sys
+from typing import List
+
+
+def bool_to_yn(bool_input: bool) -> str:
+    lex = {True: 'y', False: 'n'}
+
+    return lex[bool_input]
+
+
+def bool_to_strings(bool_input: bool) -> list[str]:
+    lex = {
+        True: ["yes", "y", "true"],
+        False: ["no", "n", "false"],
+    }
+
+    return lex[bool_input]
+
+
+def string_to_bool(string_input: str) -> bool or None:
+    lex = {
+        "yes": True, "y": True, "true": True,
+        "no": False, "n": False, "false": False,
+    }
+
+    return lex.get(string_input.lower(), None)
 
 
 def get_script(script: str, scripts_dict: dict[str, str], name: str) -> str or None:
@@ -74,7 +99,8 @@ def replace_env(string: str) -> str:
     This method takes a string as input and replaces all occurrences of environment variable placeholders in the
     format ${variable_name} with their corresponding values. It uses regular expressions to find all placeholders
     in the string, then checks if the corresponding environment variable is set. If the variable is set, it replaces
-    the placeholder with the variable's value. If the variable is not set, it raises a ValueError.
+    the placeholder with the variable's value. If the variable is not set, it does not do any replacement and returns
+    the string unchanged.
 
     Example usage:
 
@@ -86,9 +112,8 @@ def replace_env(string: str) -> str:
 
     for match in matches:
         env_value = os.getenv(match)
-        if env_value is None:
-            raise ValueError(f'Environment variable {match} not set.')
-        string = string.replace(f'${{{match}}}', env_value)
+        if env_value is not None:
+            string = string.replace(f'${{{match}}}', env_value)
 
     return string
 

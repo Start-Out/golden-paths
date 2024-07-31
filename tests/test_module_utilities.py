@@ -83,9 +83,9 @@ def test_create_module(dummy_module):
     result = create_module(dummy_module, "test_module")
 
     assert isinstance(result, Module), "Must return instance of Module"
-    assert result.name == "test_module", "Module name must be as expected"
-    assert result.dest == "/dest/path", "Module destination must be as expected"
-    assert result.source == "https://github.com/repo.git", "Module source must be as expected"
+    assert result.get_name() == "test_module", "Module name must be as expected"
+    assert result.get_dest() == "/dest/path", "Module destination must be as expected"
+    assert result.get_source() == "https://github.com/repo.git", "Module source must be as expected"
     assert result.scripts == {"init": "exit 0", "destroy": "exit 0"}, "Script must be as expected"
     assert result.dependencies == ["module1", "module2"], "Dependencies must be as expected"
 

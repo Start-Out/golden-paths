@@ -217,14 +217,14 @@ class Starter:
             # Install modules layer by layer so that their dependencies are all met before being installed
             early_exit = False
 
-            for module in (module for module in self.modules if module.name in layer):
+            for module in (module for module in self.modules if module.get_name() in layer):
                 # Initialize this module, adding it to the list of failures if it cannot be initialized
                 if not module.initialize():
-                    failed_modules.append(module.name)
+                    failed_modules.append(module.get_name())
                     if fail_early:
                         early_exit = True
                 else:
-                    successful_modules.append(module.name)
+                    successful_modules.append(module.get_name())
 
             if early_exit:
                 break
@@ -240,14 +240,14 @@ class Starter:
                       file=sys.stderr)
 
                 destroyed_modules = []
-                for module in [module for module in self.modules if module.name in successful_modules]:
+                for module in [module for module in self.modules if module.get_name() in successful_modules]:
                     if not module.destroy():
                         # TODO handle failure to destroy better
-                        print(f"FATAL: Failed to destroy module \"{module.name}\"", file=sys.stderr)
+                        print(f"FATAL: Failed to destroy module \"{module.get_name()}\"", file=sys.stderr)
                         print(f".. Only destroyed these modules: {destroyed_modules}", file=sys.stderr)
                         sys.exit(1)
                     else:
-                        destroyed_modules.append(module.name)
+                        destroyed_modules.append(module.get_name())
 
             # If any modules failed to initialize
             return False
@@ -263,7 +263,7 @@ class Starter:
         :return: A list of tuples where each tuple contains the name and init_options
                  of modules satisfying the condition.
         """
-        return [(module.name, module.init_options) for module in self.modules if module.init_options is not None]
+        return [(module.get_name(), module.init_options) for module in self.modules if module.init_options is not None]
 
     def set_init_options(self, options):
         """
@@ -282,11 +282,9 @@ class Starter:
             os.environ[option_name] = str(value)
 
             # Update the internal variable of the option itself
-            module = [module for module in self.modules if module.name == module_name][0]
+            module = [module for module in self.modules if module.get_name() == module_name][0]
             option = [option for option in module.init_options if option.name == option_name][0]
             option.value = value
-
-        pass
 
 
 def create_dependency_layers(items: list[Module or Tool]) -> list[list[str]]:
@@ -356,12 +354,13 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
     :rtype: Starter
     """
     loaded = yaml.safe_load(starterfile_stream)
-    Starter.starterfile_schema.validate(loaded)
 
-    if "env_files" in loaded.keys():
+    if "env_file" in loaded.keys():
         for env_file in loaded["env_file"]:
             _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
             load_dotenv(str(_path))
+
+    Starter.starterfile_schema.validate(loaded)
 
     tools = []
 
@@ -390,7 +389,7 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
 
     module_dependencies = create_dependency_layers(modules)
 
-    print("SUCCESS! Parsed modules:", [module.name for module in modules])
+    print("SUCCESS! Parsed modules:", [module.get_name() for module in modules])
 
     return Starter(
         modules=modules,
@@ -398,4 +397,3 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
         module_dependencies=module_dependencies,
         tool_dependencies=tool_dependencies
     )
-
