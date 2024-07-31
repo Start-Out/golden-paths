@@ -155,6 +155,7 @@ def initialize_path_instance(
         console.file = sys.stderr  # set console output to stderr
         console.print("Failed to initialize new Path, exiting now.", style='error')
         console.file = sys.stdout  # set console output back to stdout
+        sys.exit(1)
 
     else:
         if not is_path:
