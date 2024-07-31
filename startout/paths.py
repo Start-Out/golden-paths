@@ -280,7 +280,7 @@ def new_repo_owner_interactive() -> str:
 
 
 def initialize_repo(
-        template_owner: str, template_name: str, new_repo_owner: str, new_repo_name: str, public: bool = True
+        template_owner: str or None, template_name: str or None, new_repo_owner: str or None, new_repo_name: str or None, public: bool = True
 ):
     # If any environment variables are missing, prompt the user for them interactively
 
