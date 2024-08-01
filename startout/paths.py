@@ -4,26 +4,73 @@ import subprocess
 import sys
 from typing import Optional
 
+import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.theme import Theme
-
-
-import typer
 from typing_extensions import Annotated
 
-import github_api as gh_api
-
+import startout.github_api as gh_api
+from startout import util
+from startout.init_option import InitOption
+from startout.starterfile import parse_starterfile
 
 custom_theme = Theme({
     "input_prompt": "bold cyan",
     "announcement": "bold yellow",
     "success": "bold green",
+    "warning": "bold orange1",
     "error": "bold red",
     "bold": "bold",
 })
 
 console = Console(theme=custom_theme)
+
+
+def prompt_init_option(option: InitOption):
+    # If the default type is boolean, then use yes/no parsing
+    use_bool = isinstance(option.default, bool)
+
+    if use_bool:
+        default_reminder = f" \[default: {util.bool_to_yn(option.default)}]"
+    else:
+        default_reminder = f" \[default: {option.default}]"
+
+    if use_bool:
+        type_reminder = f"(y/n)"
+    elif type(option.default) is int:
+        type_reminder = f"(enter an integer)"
+    elif type(option.default) is float:
+        type_reminder = f"(enter a floating point number)"
+    else:
+        type_reminder = ""
+
+    endl = "\n"
+    potential_response = console.input(
+        f"[input_prompt]{option.prompt}[/]"
+        f"{' ' if len(type_reminder) == 0 else endl}"
+        f"[italic cyan]{type_reminder}{default_reminder}: [/]"
+    )
+
+    _T = type(option.default)
+    response = None
+    while response is None:
+        if len(potential_response) > 0:
+            try:
+                if use_bool:
+                    response = util.string_to_bool(potential_response)
+                else:
+                    response = _T(potential_response)
+            except ValueError:
+                console.print(
+                    f"[error]Try again.[/]"
+                )
+                potential_response = console.input("> ")
+        else:
+            response = option.default
+
+    return response
+
 
 # Initialize the typer CLI
 startout_paths_app = typer.Typer(name="startout-paths")
@@ -33,16 +80,16 @@ startout_paths_app = typer.Typer(name="startout-paths")
 @startout_paths_app.command(
     name="init",
     help="Initialize a new Path instance from a template repository and perform all automatic set up steps defined in"
-    "its Starterfile"
+         "its Starterfile"
 )
 def initialize_path_instance(
         template: Annotated[str, typer.Argument(help="Path Template to use. This may be a fully-formed GitHub repo "
                                                      "(e.g. User/Repo) or part of name which will be completed "
                                                      "interactively")],
-        new_repo_name:  Annotated[str, typer.Argument(help="Name of new repo created from Path")],
+        new_repo_name: Annotated[str, typer.Argument(help="Name of new repo created from Path")],
         new_repo_owner: Annotated[Optional[str], typer.Argument(help="User or Organization that will own the new repo "
                                                                      "(leave blank to assign interactively)")] = "",
-        public:  Annotated[bool, typer.Option("--public/--private", help="Set visibility of the new repo")] = True,
+        public: Annotated[bool, typer.Option("--public/--private", help="Set visibility of the new repo")] = True,
 ):
     # fmt: on
 
@@ -63,9 +110,9 @@ def initialize_path_instance(
         )
         if len(result) == 0 or result.lower() == "start-out":
 
-            # StartOut Path templates begin with a prefix 'path.path-', default behavior is to use this prefix.
+            # StartOut Path templates begin with a prefix 'path-', default behavior is to use this prefix.
             template_owner = "Start-Out"
-            template_name = f"path.path-{template}"
+            template_name = f"path-{template}"
         else:
             template_owner = result
             template_name = template
@@ -80,6 +127,18 @@ def initialize_path_instance(
             f"  * [bold]NOTE[/]: Non-paths will trigger an interactive mode which provides helpful defaults"
         )
         sys.exit(1)
+
+    #######################################
+    # Check if defined repository is a Path
+    #######################################
+
+    is_path = gh_api.check_repo_custom_property(template_owner, template_name, {
+        "Golden-Paths": "Path",
+    })
+
+    if not is_path:
+        console.print("Warning: Specified template can't be confirmed as a path, some features may be unavailable.",
+                      style='warning')
 
     #################################
     # Parse the owner of the new repo
@@ -97,15 +156,32 @@ def initialize_path_instance(
         console.file = sys.stderr  # set console output to stderr
         console.print("Failed to initialize new Path, exiting now.", style='error')
         console.file = sys.stdout  # set console output back to stdout
+        sys.exit(1)
 
     else:
-        pass
-        # initialize frameworks using Starterfile
+        if not is_path:
+            console.print("Not a path: Skipping Starterfile step.", style='warning')
+        else:
+            # Initialize frameworks using Starterfile
+            os.chdir(initialized_repo_path)
+
+            with open("Starterfile.yaml", "r") as starter_file:
+                starter = parse_starterfile(starter_file)
+
+            init_options = starter.get_init_options()
+
+            responses = {}
+            for module_name, options in init_options:
+                for option in options:
+                    response = prompt_init_option(option)
+                    responses[(module_name, option.name)] = response
+
+            starter.set_init_options(responses)
+            starter.up()
 
 
 def new_repo_owner_interactive() -> str:
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}")) as progress:
-
 
         # Collect valid options for the user using `gh auth status` and `gh org list`
 
@@ -130,7 +206,8 @@ def new_repo_owner_interactive() -> str:
                 console.print(result.stderr.decode(), style='error')
             if result.stdout is not None:
                 console.print(result.stdout.decode())
-            console.print("Unable to authenticate with GitHub, please ensure you have completed `gh auth login`", style='bold')
+            console.print("Unable to authenticate with GitHub, please ensure you have completed `gh auth login`",
+                          style='bold')
             sys.exit(1)
 
         progress.update(task1, description="Success: gh auth status validated", completed=True)
@@ -151,7 +228,6 @@ def new_repo_owner_interactive() -> str:
         # Get authorized orgs via gh org list
         task2 = progress.add_task(f"Checking `gh org list`", total=None)
 
-
         result = subprocess.run(['gh', 'org', 'list'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         # Do not exit, but warn the user that this check failed
@@ -167,9 +243,8 @@ def new_repo_owner_interactive() -> str:
             feedback = result.stdout.decode()
             lines = feedback.splitlines()
 
-            valid_owners.extend(lines)
+            valid_owners.extend([org for org in lines if len(org) > 0])
             progress.update(task2, description="Success: gh orgs collected", completed=True)
-
 
     # All potential new owners are collected, prompt user to choose one
     console.print("Please choose from the following list for the new repo owner:", style='input_prompt')
@@ -207,7 +282,7 @@ def new_repo_owner_interactive() -> str:
 
 
 def initialize_repo(
-    template_owner: str, template_name: str, new_repo_owner: str, new_repo_name: str, public: bool = True
+        template_owner: str or None, template_name: str or None, new_repo_owner: str or None, new_repo_name: str or None, public: bool = True
 ):
     # If any environment variables are missing, prompt the user for them interactively
 

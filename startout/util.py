@@ -7,6 +7,61 @@ import subprocess
 import sys
 
 
+def bool_to_yn(bool_input: bool) -> str:
+    """
+    Converts a boolean value to a 'y' or 'n' string representation.
+
+    :param bool_input: The boolean value to be converted.
+        - True: Represented by 'y'
+        - False: Represented by 'n'
+    :return: The string representation of the boolean value.
+        - 'y' if bool_input is True
+        - 'n' if bool_input is False
+
+    """
+    lex = {True: 'y', False: 'n'}
+
+    return lex[bool_input]
+
+
+def bool_to_strings(bool_input: bool) -> list[str]:
+    """
+    Converts a boolean value to a list of corresponding strings.
+
+    :param bool_input: The boolean value to be converted.
+    :return: A list of strings representing the boolean value. The list will contain one or more of the following strings:
+        - "yes"
+        - "y"
+        - "true" (if bool_input is True)
+        - "no"
+        - "n"
+        - "false" (if bool_input is False)
+    """
+    lex = {
+        True: ["yes", "y", "true"],
+        False: ["no", "n", "false"],
+    }
+
+    return lex[bool_input]
+
+
+def string_to_bool(string_input: str) -> bool or None:
+    """
+    Convert a string representation of boolean to a boolean value.
+
+    :param string_input: The input string to be converted.
+    :type string_input: str
+    :return: The corresponding boolean value or None if the input string is not recognized as boolean.
+    :rtype: bool or None
+    """
+    lex = {
+        "yes": True, "y": True, "true": True,
+        "no": False, "n": False, "false": False,
+    }
+
+    return lex.get(string_input.lower(), None)
+
+
 def get_script(script: str, scripts_dict: dict[str, str], name: str) -> str or None:
     """
     Get the script based on the platform and provided parameters.
@@ -74,7 +129,8 @@ def replace_env(string: str) -> str:
     This method takes a string as input and replaces all occurrences of environment variable placeholders in the
     format ${variable_name} with their corresponding values. It uses regular expressions to find all placeholders
     in the string, then checks if the corresponding environment variable is set. If the variable is set, it replaces
-    the placeholder with the variable's value. If the variable is not set, it raises a ValueError.
+    the placeholder with the variable's value. If the variable is not set, it does not do any replacement and returns
+    the string unchanged.
 
     Example usage:
 
@@ -86,9 +142,8 @@ def replace_env(string: str) -> str:
 
     for match in matches:
         env_value = os.getenv(match)
-        if env_value is None:
-            raise ValueError(f'Environment variable {match} not set.')
-        string = string.replace(f'${{{match}}}', env_value)
+        if env_value is not None:
+            string = string.replace(f'${{{match}}}', env_value)
 
     return string
 

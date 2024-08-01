@@ -116,7 +116,18 @@ class Module:
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
 
     def __hash__(self):
-        return hash((self.name, self.dest, self.source, str(self.dependencies), str(self.scripts), str(self.init_options)))
+        return hash(
+            (self.get_name(), self.get_dest(), self.get_source(), str(self.dependencies), str(self.scripts),
+             str(self.init_options)))
+
+    def get_name(self):
+        return replace_env(self.name)
+
+    def get_dest(self):
+        return replace_env(self.dest)
+
+    def get_source(self):
+        return replace_env(self.source)
 
     def run(self, script: str, print_output: bool = False) -> tuple[str, int]:
         """
@@ -129,10 +140,10 @@ class Module:
         if script not in self.scripts:
             raise ValueError(f"Module \"{self.name}\" does not have script '{script}' in {list(self.scripts.keys())}")
 
-        response, code = run_script_with_env_substitution(get_script(script, self.scripts, self.name))
+        response, code = run_script_with_env_substitution(get_script(script, self.scripts, self.get_name()))
 
         if print_output and type(response) is str and len(response.strip()) > 0:
-            print(f".... [{self.name}.{script}]: {response.strip()}")
+            print(f".... [{self.get_name()}.{script}]: {response.strip()}")
 
         return response, code
 
@@ -145,10 +156,10 @@ class Module:
         msg, code = self.run("init", print_output=True)
 
         if code != 0:
-            print(f".. FAILURE [{self.name}]: {msg}", file=sys.stderr)
+            print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
             return False
         else:
-            print(f".. SUCCESS [{self.name}]: Initialized module {self.name}")
+            print(f".. SUCCESS [{self.get_name()}]: Initialized module {self.get_name()}")
             return True
 
     def destroy(self):
@@ -160,10 +171,10 @@ class Module:
         msg, code = self.run("destroy", print_output=True)
 
         if code != 0:
-            print(f".. FAILURE [{self.name}]: {msg}", file=sys.stderr)
+            print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
             return False
         else:
-            print(f".. SUCCESS [{self.name}]: Destroyed module {self.name}")
+            print(f".. SUCCESS [{self.get_name()}]: Destroyed module {self.get_name()}")
             return True
 
 
@@ -206,46 +217,46 @@ class GitModule(Module):
             "git",
             "clone",
             # "--progress",
-            self.source,
-            self.dest
+            self.get_source(),
+            self.get_dest()
         ]
         result = subprocess.run(cmd, text=True,
                                 capture_output=True)  # TODO hoist the feedback to the terminal, especially if it can be displayed by the CLI which enwraps it
 
         if result.returncode != 0:
-            print(f".. FAILURE [{self.name}]: {result.stdout.strip()}", file=sys.stderr)
+            print(f".. FAILURE [{self.get_name()}]: {result.stdout.strip()}", file=sys.stderr)
             return False
         else:
-            print(f".... PROGRESS [{self.name}]: Cloned module {self.name}, running init script")
+            print(f".... PROGRESS [{self.get_name()}]: Cloned module {self.get_name()}, running init script")
             msg, code = self.run("init", print_output=True)
 
             if code != 0:
-                print(f".. FAILURE [{self.name}]: {msg}", file=sys.stderr)
+                print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
                 return False
             else:
-                print(f".. SUCCESS [{self.name}]: Initialized module {self.name}")
+                print(f".. SUCCESS [{self.get_name()}]: Initialized module {self.get_name()}")
                 return True
 
 
 class ScriptModule(Module):
     def initialize(self):
-        msg, code = run_script_with_env_substitution(self.source)
+        msg, code = run_script_with_env_substitution(self.get_source())
 
         if code != 0:
-            print(f".. FAILURE [{self.name}]: {msg}", file=sys.stderr)
+            print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
             return False
         else:
-            print(f".... PROGRESS [{self.name}]: Ran script for module {self.name}")
+            print(f".... PROGRESS [{self.get_name()}]: Ran script for module {self.get_name()}")
             if type(msg) is str and len(msg.strip()) > 0:
-                print(f".... [{self.name}.source.script]: {msg.strip()}")
-            print(f".... PROGRESS [{self.name}]: Running init script")
+                print(f".... [{self.get_name()}.source.script]: {msg.strip()}")
+            print(f".... PROGRESS [{self.get_name()}]: Running init script")
             msg, code = self.run("init", print_output=True)
 
             if code != 0:
-                print(f".. FAILURE [{self.name}]: {msg}", file=sys.stderr)
+                print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
                 return False
             else:
-                print(f".. SUCCESS [{self.name}]: Initialized module {self.name}")
+                print(f".. SUCCESS [{self.get_name()}]: Initialized module {self.get_name()}")
                 return True
 
 

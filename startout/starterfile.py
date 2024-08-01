@@ -286,8 +286,6 @@ class Starter:
             option = [option for option in module.init_options if option.name == option_name][0]
             option.value = value
 
-        pass
-
 
 def create_dependency_layers(items: list[Module or Tool]) -> list[list[str]]:
     """
@@ -356,12 +354,13 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
     :rtype: Starter
     """
     loaded = yaml.safe_load(starterfile_stream)
-    Starter.starterfile_schema.validate(loaded)
 
-    if "env_files" in loaded.keys():
+    if "env_file" in loaded.keys():
         for env_file in loaded["env_file"]:
             _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
             load_dotenv(str(_path))
+
+    Starter.starterfile_schema.validate(loaded)
 
     tools = []
 
@@ -390,7 +389,7 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
 
     module_dependencies = create_dependency_layers(modules)
 
-    print("SUCCESS! Parsed modules:", [module.name for module in modules])
+    print("SUCCESS! Parsed modules:", [module.get_name() for module in modules])
 
     return Starter(
         modules=modules,
@@ -398,4 +397,3 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
         module_dependencies=module_dependencies,
         tool_dependencies=tool_dependencies
     )
-

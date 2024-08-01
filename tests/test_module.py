@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from startout.module import Module
+from startout.module import Module, check_for_key
 
 
 class TestModuleInitializationSuccess(unittest.TestCase):
@@ -110,6 +110,12 @@ class TestModuleInitializationPartial(unittest.TestCase):
     def test_module_init_fails_when_init_script_is_missing(self):
         with self.assertRaises(TypeError):
             Module(self.name, self.dest, self.source, self.scripts, self.dependencies, self.init_options)
+
+    def test_check_for_key_fails_without_script(self):
+        with self.assertRaises(TypeError):
+            check_for_key("module", "not_found", {
+                "script": "exit 0"
+            })
 
 
 if __name__ == '__main__':

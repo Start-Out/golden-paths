@@ -1,3 +1,6 @@
+env_file:
+  - example.env
+
 tools:
   tool:
     scripts:
@@ -21,7 +24,7 @@ modules:
       destroy: exit 0
   dependent_module:
     depends_on: module
-    dest: path/to/dependent_module
+    dest: 2/equals/${ONE}
     source:
       script: exit 0
     scripts:

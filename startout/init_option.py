@@ -21,12 +21,14 @@ class InitOption:
         Initializes the method.
 
         :param options_set: A dictionary containing the options for the method.
-                    - "default" (required): The default value for the option.
+                    - "default" (required): The default value for the option. This value may not be `None`
                     - "type" (optional): The type of the option value.
                     - "env_name" (required): The name of the environment variable associated with the option.
                     - "prompt" (required): The prompt to display when prompting for the option value.
         """
         default = options_set["default"]
+
+        assert default is not None
 
         if "type" in options_set.keys():
             _t = type_tool(options_set["type"])
