@@ -65,6 +65,7 @@ def prompt_init_option(option: InitOption):
                 console.print(
                     f"[error]Try again.[/]"
                 )
+                potential_response = console.input("> ")
         else:
             response = option.default
 

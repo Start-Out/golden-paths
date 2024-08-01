@@ -54,6 +54,12 @@ class TestPromptInitOption(unittest.TestCase):
         self.option.default = "default_value"
         self.assertEqual(prompt_init_option(self.option), "default_value")
 
+    @patch.object(console, "input")
+    def test_prompt_init_option_when_input_invalid(self, input_mock):
+        input_mock.side_effect = ["zero", "1"]  # First input is invalid, second is valid.
+        self.option.default = 0
+        self.assertEqual(prompt_init_option(self.option), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
