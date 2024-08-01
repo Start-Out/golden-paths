@@ -62,6 +62,7 @@ class TestStarter(unittest.TestCase):
         self.tool_deps = [['tool1', 'tool2'], ['tool3', 'tool4', 'tool5']]
 
         self.starter_successful_init = Starter(self.mock_modules, self.mock_tools, self.module_deps, self.tool_deps)
+        self.starter_failure_init = Starter([], [], [], [])
 
     def test_starter_init(self):
         assert self.starter_successful_init.modules == self.mock_modules
@@ -82,6 +83,12 @@ class TestStarter(unittest.TestCase):
         _, options = self.starter_successful_init.get_init_options()[0]
         option = [option for option in options if option.name == "1"][0]
         assert option.value == "Value"
+
+    def test_up_succeeds(self):
+        assert self.starter_successful_init.up()
+
+    def test_up_fails(self):
+        assert not self.starter_failure_init.up()
 
 
 def test_install_tools_no_tools():

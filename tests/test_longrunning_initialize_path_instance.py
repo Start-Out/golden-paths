@@ -24,6 +24,10 @@ class Starter:
         return self.mock_up_succeeds
 
 
+class InitOption:
+    def __init__(self, name):
+        self.name = name
+
 @mock.patch('startout.paths.prompt_init_option')
 @mock.patch('startout.paths.parse_starterfile')
 @mock.patch('startout.paths.open')
@@ -141,3 +145,22 @@ class TestInitializePathInstance(unittest.TestCase):
         with self.assertRaises(SystemExit):
             _ = startout.paths.initialize_path_instance("Valid/Enough", self.new_repo_name,
                                                         self.new_repo_owner, self.public)
+
+    def test_initialize_path_init_options(self, mock_re, mock_check, mock_new_owner, mock_init_repo, mock_chdir,
+                                          mock_open, mock_parse, mock_prompt):
+        #####################
+        # Define interactions
+        self.mock_console.input.side_effect = [""]  # Simulate pressing enter to take default
+        mock_re.return_value = False  # The template defined is not a valid reference
+        mock_check.return_value = True  # The template is a valid Path
+        mock_init_repo.return_value = self.created_repo_path  # Successfully initialized the repo
+
+        # Mock the prompt of an InitOption
+        self.mock_starter_valid.mock_init_options = [("module_name", [InitOption("init_option")])]
+        mock_parse.return_value = self.mock_starter_valid
+
+        mock_prompt.return_value = "option_value"
+        #####################
+
+        startout.paths.initialize_path_instance(self.startout_path_template_name, self.new_repo_name,
+                                                self.new_repo_owner, self.public)

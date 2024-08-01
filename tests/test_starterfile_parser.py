@@ -75,7 +75,7 @@ def build_starter_2():
             ),
             ScriptModule(
                 name="dependent_module",
-                dest="path/to/dependent_module",
+                dest="2/equals/TWO",
                 source="exit 0",
                 scripts={
                     "init": "exit 0",

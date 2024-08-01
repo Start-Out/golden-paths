@@ -243,7 +243,7 @@ def new_repo_owner_interactive() -> str:
             feedback = result.stdout.decode()
             lines = feedback.splitlines()
 
-            valid_owners.extend(lines)
+            valid_owners.extend([org for org in lines if len(org) > 0])
             progress.update(task2, description="Success: gh orgs collected", completed=True)
 
     # All potential new owners are collected, prompt user to choose one
