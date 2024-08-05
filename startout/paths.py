@@ -327,7 +327,7 @@ def startout_paths_command():
     typer.run(initialize_path_instance)
 
 
-@startout_paths_app.command(
+@startout_starterfile_app.command(
     name="up",
     help="Perform all automatic set up steps defined in a Starterfile"
 )
