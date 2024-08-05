@@ -333,9 +333,11 @@ def startout_paths_command():
 )
 def starterfile_up_only(
         starterfile_path: Annotated[Optional[str], typer.Argument(help="Startfile to use")] = "Starterfile.yaml"):
+
     # Ensure the starterfile path is a valid file
     if not Path(starterfile_path).is_file():
-        raise FileNotFoundError(f"No such file '{starterfile_path}'")
+        print(f"No such file '{starterfile_path}'", file=sys.stderr)
+        exit(1)
 
     starterfile_parent_dir = Path(starterfile_path).parent
 

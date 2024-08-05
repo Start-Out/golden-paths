@@ -75,6 +75,7 @@ class TestStarterFileCLI(unittest.TestCase):
     @parameterized.expand([
         "tests/resources/starterfiles/circular_module_starter.yaml",  # Basic Starterfile
         "tests/resources/starterfiles/circular_tool_starter.yaml",  # Starterfile with dependencies
+        "NoStarterfileHere.nope"  # No Starterfile defined
     ])
     # fmt: on
     def test_starterfiles_fail_on_up(self, starterfile_path):
@@ -88,3 +89,29 @@ class TestStarterFileCLI(unittest.TestCase):
 
         with open("Startersteps.md", 'r') as f:
             assert f.read() == "A${NONRESULT}"
+
+    @mock.patch('startout.paths.prompt_init_option')
+    @mock.patch('startout.paths.parse_starterfile')
+    @mock.patch('startout.paths.open')
+    @mock.patch('startout.paths.os.chdir')
+    @mock.patch('startout.paths.initialize_repo')
+    @mock.patch('startout.paths.new_repo_owner_interactive')
+    @mock.patch('startout.paths.gh_api.check_repo_custom_property')
+    @mock.patch('startout.paths.re.match')
+    def test_starterfile_up_init_options(self, mock_re, mock_check, mock_new_owner, mock_init_repo, mock_chdir,
+                                          mock_open, mock_parse, mock_prompt):
+        #####################
+        # Define interactions
+        self.mock_console.input.side_effect = [""]  # Simulate pressing enter to take default
+        mock_re.return_value = False  # The template defined is not a valid reference
+        mock_check.return_value = True  # The template is a valid Path
+        mock_init_repo.return_value = self.created_repo_path  # Successfully initialized the repo
+
+        # Mock the prompt of an InitOption
+        self.mock_starter_valid.mock_init_options = [("module_name", [InitOption("init_option")])]
+        mock_parse.return_value = self.mock_starter_valid
+
+        mock_prompt.return_value = "option_value"
+        #####################
+
+        startout.paths.starterfile_up_only("tests/resources/starterfiles/starter1.yaml")
