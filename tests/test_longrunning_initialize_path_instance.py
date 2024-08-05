@@ -164,3 +164,4 @@ class TestInitializePathInstance(unittest.TestCase):
 
         startout.paths.initialize_path_instance(self.startout_path_template_name, self.new_repo_name,
                                                 self.new_repo_owner, self.public)
+

@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -74,6 +75,7 @@ def prompt_init_option(option: InitOption):
 
 # Initialize the typer CLI
 startout_paths_app = typer.Typer(name="startout-paths")
+startout_starterfile_app = typer.Typer(name="startout-starter")
 
 
 # fmt: off
@@ -282,7 +284,8 @@ def new_repo_owner_interactive() -> str:
 
 
 def initialize_repo(
-        template_owner: str or None, template_name: str or None, new_repo_owner: str or None, new_repo_name: str or None, public: bool = True
+        template_owner: str or None, template_name: str or None, new_repo_owner: str or None,
+        new_repo_name: str or None, public: bool = True
 ):
     # If any environment variables are missing, prompt the user for them interactively
 
@@ -322,6 +325,44 @@ def initialize_repo(
 
 def startout_paths_command():
     typer.run(initialize_path_instance)
+
+
+@startout_paths_app.command(
+    name="up",
+    help="Perform all automatic set up steps defined in a Starterfile"
+)
+def starterfile_up_only(
+        starterfile_path: Annotated[Optional[str], typer.Argument(help="Startfile to use")] = "Starterfile.yaml"):
+    # Ensure the starterfile path is a valid file
+    if not Path(starterfile_path).is_file():
+        raise FileNotFoundError(f"No such file '{starterfile_path}'")
+
+    starterfile_parent_dir = Path(starterfile_path).parent
+
+    # Obtain the current working directory, and then join this path with the 'starterfile_path'
+    cwd = os.getcwd()
+    full_starterfile_path = os.path.join(cwd, starterfile_path)
+
+    os.chdir(starterfile_parent_dir)
+
+    with open(full_starterfile_path, "r") as starter_file:
+        starter = parse_starterfile(starter_file)
+
+    init_options = starter.get_init_options()
+
+    responses = {}
+    for module_name, options in init_options:
+        for option in options:
+            response = prompt_init_option(option)
+            responses[(module_name, option.name)] = response
+
+    starter.set_init_options(responses)
+    starter.up()
+    os.chdir(cwd)
+
+
+def startout_starter_app():
+    startout_starterfile_app()
 
 
 if __name__ == "__main__":

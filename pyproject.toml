@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "startout"
-version = "0.1.0"
+version = "0.2.0"
 description = "Draft version of the StartOut CLI'"
-authors = ["Your Name <you@example.com>"]
+authors = ["Trenton Yo <askstartout@gmail.com>", "Jake Gehrke <askstartout@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -30,3 +30,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 startout-paths = "startout.paths:startout_paths_command"
+startout-starter = "startout.paths:startout_starter_app"
