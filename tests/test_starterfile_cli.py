@@ -80,3 +80,11 @@ class TestStarterFileCLI(unittest.TestCase):
     def test_starterfiles_fail_on_up(self, starterfile_path):
         with self.assertRaises(SystemExit):
             _ = startout.paths.starterfile_up_only(starterfile_path)
+
+    def test_starterfile_up_does_env_replace_on_startersteps(self):
+        os.chdir("./tests/resources/workspaces/startersteps")
+
+        _ = startout.paths.starterfile_up_only()
+
+        with open("Startersteps.md", 'r') as f:
+            assert f.read() == "A${NONRESULT}"
