@@ -85,6 +85,7 @@ class TestModuleInitializationSuccess(unittest.TestCase):
         self.assertFalse(result)
         mock_run.assert_called_once_with('destroy', print_output=True)
 
+
 class TestModuleInitializationFails(unittest.TestCase):
     def setUp(self):
         self.name = "failing_init_module"
@@ -98,18 +99,22 @@ class TestModuleInitializationFails(unittest.TestCase):
         with self.assertRaises(TypeError):
             Module(self.name, self.dest, self.source, self.scripts, self.dependencies, self.init_options)
 
+
 class TestModuleInitializationPartial(unittest.TestCase):
     def setUp(self):
         self.name = "partial_init_module"
         self.dest = "/path/to/dest"
         self.source = "git"
-        self.scripts = {'destroy': 'destroy.sh'}
         self.dependencies = ["dependency1", "dependency2"]
         self.init_options = [{'env_name': 'test', 'type': 'str', 'default': 'default_val', 'prompt': 'prompt_msg'}]
 
     def test_module_init_fails_when_init_script_is_missing(self):
         with self.assertRaises(TypeError):
-            Module(self.name, self.dest, self.source, self.scripts, self.dependencies, self.init_options)
+            Module(self.name, self.dest, self.source, {'destroy': 'exit 0'}, self.dependencies, self.init_options)
+
+    def test_module_init_fails_when_destroy_script_is_missing(self):
+        with self.assertRaises(TypeError):
+            Module(self.name, self.dest, self.source, {'init': 'exit 0'}, self.dependencies, self.init_options)
 
     def test_check_for_key_fails_without_script(self):
         with self.assertRaises(TypeError):

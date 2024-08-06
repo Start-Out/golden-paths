@@ -1,6 +1,7 @@
 import itertools
 import os
 import sys
+from pathlib import Path
 from typing import TextIO
 
 import yaml
@@ -9,6 +10,7 @@ from schema import Schema, And, Or, Optional, Use
 
 from startout.module import Module, create_module
 from startout.tool import Tool
+from startout.util import replace_env
 
 
 class Starter:
@@ -112,6 +114,9 @@ class Starter:
 
     def up(self, teardown_on_failure=True, fail_early=True):
         """
+        Installs all Tools, all Modules, and performs environment variable replacement on a Startersteps.md file (if
+        applicable)
+
         :param teardown_on_failure: A boolean flag to determine whether to perform teardown operations if any failure occurs during the method execution. Default value is `True`.
         :param fail_early: A boolean flag to determine whether to abort the process as soon as a tool or module fails to initialize. Default value is `False`.
         :return: A boolean value indicating whether the tools and modules installation was successful. Returns `True` if both tools and modules were installed successfully, otherwise returns `False`.
@@ -123,6 +128,16 @@ class Starter:
             print("ERROR: Failed to install tools!", file=sys.stderr)
         if not modules_installed:
             print("ERROR: Failed to install modules!", file=sys.stderr)
+
+        # If a Startersteps.md file is present, perform environment variable replacement
+        if Path("Startersteps.md").is_file():
+            new_lines = []
+            with open("Startersteps.md", "r") as steps_in:
+                new_lines.extend(steps_in.readlines())
+
+            with open("Startersteps.md", "w") as steps_out:
+                for line in new_lines:
+                    steps_out.write(replace_env(line))
 
         return tools_installed and modules_installed
 
@@ -356,8 +371,12 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
     loaded = yaml.safe_load(starterfile_stream)
 
     if "env_file" in loaded.keys():
-        for env_file in loaded["env_file"]:
-            _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
+        if type(loaded["env_file"]) is list:
+            for env_file in loaded["env_file"]:
+                _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
+                load_dotenv(str(_path))
+        elif type(loaded["env_file"]) is str:
+            _path = os.path.join(os.path.dirname(starterfile_stream.name), loaded["env_file"])
             load_dotenv(str(_path))
 
     Starter.starterfile_schema.validate(loaded)
