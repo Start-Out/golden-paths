@@ -20,6 +20,9 @@ on:
   push:
     branches:
       - dev
+defaults:
+  run:
+    shell: bash
 jobs:
   test_suite:
     name: Run test suite steps
@@ -46,7 +49,8 @@ jobs:
         env:
           DEBUG: True
         run: |
-          poetry run pytest --cov --cov-report=lcov:cov.lcov --cov=startout
+          source $VENV
+          pytest --cov --cov-report=lcov:cov.lcov --cov=startout
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v2.2.3
         with:
