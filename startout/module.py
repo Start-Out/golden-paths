@@ -100,10 +100,10 @@ class Module:
         :param dependencies: (optional) A list of module names that this module depends on. Defaults to None.
         :param init_options: (optional) Additional options for module initialization. Defaults to None.
         """
-        if get_script("init", scripts, name) is None:
-            raise TypeError(f"No 'init' script defined for module \"{name}\". Failed to create Module.")
-        if get_script("destroy", scripts, name) is None:
-            raise TypeError(f"No 'destroy' script defined for module \"{name}\". Failed to create Module.")
+
+        # These calls will raise an exception if the script is not present
+        get_script("init", scripts, name)
+        get_script("destroy", scripts, name)
 
         self.name = name
         self.dest = dest
