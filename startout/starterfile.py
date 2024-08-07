@@ -6,6 +6,7 @@ from typing import TextIO
 
 import yaml
 from dotenv import load_dotenv
+from rich.console import Console
 from schema import Schema, And, Or, Optional, Use
 
 from startout.module import Module, create_module
@@ -112,17 +113,19 @@ class Starter:
 
             return modules_match and tools_match and module_deps_match and tool_deps_match
 
-    def up(self, teardown_on_failure=True, fail_early=True):
+    def up(self, console: Console, log: Path, teardown_on_failure=True, fail_early=True):
         """
         Installs all Tools, all Modules, and performs environment variable replacement on a Startersteps.md file (if
         applicable)
 
+        :param console:
+        :param log:
         :param teardown_on_failure: A boolean flag to determine whether to perform teardown operations if any failure occurs during the method execution. Default value is `True`.
         :param fail_early: A boolean flag to determine whether to abort the process as soon as a tool or module fails to initialize. Default value is `False`.
         :return: A boolean value indicating whether the tools and modules installation was successful. Returns `True` if both tools and modules were installed successfully, otherwise returns `False`.
         """
         tools_installed = self.install_tools(teardown_on_failure, fail_early)
-        modules_installed = self.install_modules(teardown_on_failure, fail_early)
+        modules_installed = self.install_modules(console, log, teardown_on_failure, fail_early)
 
         if not tools_installed:
             print("ERROR: Failed to install tools!", file=sys.stderr)
@@ -207,10 +210,12 @@ class Starter:
         # If all tools were successfully installed or were already installed
         return True
 
-    def install_modules(self, teardown_on_failure=True, fail_early=True):
+    def install_modules(self, console: Console, log: Path, teardown_on_failure=True, fail_early=True):
         """
         Install modules layer by layer so that their dependencies are all met before being installed.
 
+        :param log:
+        :param console:
         :param teardown_on_failure: If True, rollback other tools if any module installation fails.
         :type teardown_on_failure: bool
         :param fail_early: If True, function will return false as soon as a tool fails to initialize.
@@ -234,7 +239,7 @@ class Starter:
 
             for module in (module for module in self.modules if module.name in layer):
                 # Initialize this module, adding it to the list of failures if it cannot be initialized
-                if not module.initialize():
+                if not module.initialize(console=console, log_path=log):
                     failed_modules.append(module.name)
                     if fail_early:
                         early_exit = True
@@ -256,7 +261,7 @@ class Starter:
 
                 destroyed_modules = []
                 for module in [module for module in self.modules if module.name in successful_modules]:
-                    if not module.destroy():
+                    if not module.destroy(console=console, log_path=log):
                         # TODO handle failure to destroy better
                         print(f"FATAL: Failed to destroy module \"{module.name}\"", file=sys.stderr)
                         print(f".. Only destroyed these modules: {destroyed_modules}", file=sys.stderr)
@@ -325,7 +330,7 @@ def create_dependency_layers(items: list[Module or Tool]) -> list[list[str]]:
 
     if len(unmet_dependencies) > 0:
         print(f"ERROR: Dependency not met {unmet_dependencies}", file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     # Modules with no dependencies are added to the first layer
 
@@ -346,7 +351,7 @@ def create_dependency_layers(items: list[Module or Tool]) -> list[list[str]]:
         if len(added_items) == 0:
             print(f"ERROR: Could not meet dependencies for {[item.name for item in dependent_items]}, "
                   f"may be a circular dependency.", file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
         for added_item in added_items:
             dependent_items.remove(added_item)

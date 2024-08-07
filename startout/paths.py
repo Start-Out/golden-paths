@@ -26,6 +26,7 @@ custom_theme = Theme({
 })
 
 console = Console(theme=custom_theme)
+log_path = os.path.join(Path(__file__).parent, "logs", "startout.log")
 
 
 def prompt_init_option(option: InitOption):
@@ -179,7 +180,7 @@ def initialize_path_instance(
                     responses[(module_name, option.name)] = response
 
             starter.set_init_options(responses)
-            starter.up()
+            starter.up(console, log_path)
 
 
 def new_repo_owner_interactive() -> str:
@@ -359,7 +360,7 @@ def starterfile_up_only(
             responses[(module_name, option.name)] = response
 
     starter.set_init_options(responses)
-    starter.up()
+    starter.up(console, log_path)
     os.chdir(cwd)
 
 
