@@ -134,7 +134,7 @@ class Module:
         return replace_env(self.source)
 
     def run(self, script: str, print_output: bool = False, monitor_output: MonitorOutput or None = None) -> tuple[
-            str, int]:
+        str, int]:
         """
         Runs a script with environment variable substitutions.
 
@@ -154,18 +154,22 @@ class Module:
 
         return response, code
 
-    def initialize(self, console: Console, log_path: Path):
+    def initialize(self, console: Console or None = None, log_path: Path or None = None):
         """
         Run the Module's 'init' script.
 
         :return: True if the response code is 0, False otherwise.
         """
-        msg, code = self.run("init", monitor_output=MonitorOutput(
-            title=f"Initializing {self.get_name()}",
-            subtitle="...",
-            console=console,
-            log_path=log_path
-        ))
+        mon = None
+        if console is not None and log_path is not None:
+            mon = MonitorOutput(
+                title=f"Initializing {self.get_name()}",
+                subtitle="...",
+                console=console,
+                log_path=log_path
+            )
+
+        msg, code = self.run("init", monitor_output=mon)
 
         if code != 0:
             print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
@@ -174,18 +178,22 @@ class Module:
             print(f".. SUCCESS [{self.get_name()}]: Initialized module {self.get_name()}")
             return True
 
-    def destroy(self, console: Console, log_path: Path):
+    def destroy(self, console: Console or None = None, log_path: Path or None = None):
         """
         Run the Module's 'destroy' script.
 
         :return: True if the response code is 0, False otherwise.
         """
-        msg, code = self.run("destroy", print_output=True, monitor_output=MonitorOutput(
-            title=f"Initializing {self.get_name()}",
-            subtitle="...",
-            console=console,
-            log_path=log_path
-        ))
+        mon = None
+        if console is not None and log_path is not None:
+            mon = MonitorOutput(
+                title=f"Initializing {self.get_name()}",
+                subtitle="...",
+                console=console,
+                log_path=log_path
+            )
+
+        msg, code = self.run("destroy", monitor_output=mon)
 
         if code != 0:
             print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
@@ -220,7 +228,7 @@ class GitModule(Module):
 
     """
 
-    def initialize(self, console: Console, log_path: Path):
+    def initialize(self, console: Console or None = None, log_path: Path or None = None):
         """
         Initializes the object by cloning `self.source` (a repository) to `self.dest` (a directory).
 
@@ -238,24 +246,32 @@ class GitModule(Module):
             self.get_dest()
         ]
 
-        result = monitored_subprocess(
-            command=cmd,
-            title=f"Cloning {self.get_name()}",
-            subtitle="...",
-            console=console
-        )
+        if console is not None:
+            result = monitored_subprocess(
+                command=cmd,
+                title=f"Cloning {self.get_name()}",
+                subtitle="...",
+                console=console
+            )
+        else:
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         if result.returncode != 0:
             print(f".. FAILURE [{self.get_name()}]: {result.stdout.strip()}", file=sys.stderr)
             return False
         else:
             print(f".... PROGRESS [{self.get_name()}]: Cloned module {self.get_name()}, running init script")
-            msg, code = self.run("init", print_output=True, monitor_output=MonitorOutput(
-                title=f"Initializing {self.get_name()}",
-                subtitle="...",
-                console=console,
-                log_path=log_path
-            ))
+
+            mon = None
+            if console is not None and log_path is not None:
+                mon = MonitorOutput(
+                    title=f"Initializing {self.get_name()}",
+                    subtitle="...",
+                    console=console,
+                    log_path=log_path
+                )
+
+            msg, code = self.run("init", print_output=True, monitor_output=mon)
 
             if code != 0:
                 print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
@@ -266,7 +282,7 @@ class GitModule(Module):
 
 
 class ScriptModule(Module):
-    def initialize(self, console: Console, log_path: Path):
+    def initialize(self, console: Console or None = None, log_path: Path or None = None):
         msg, code = run_script_with_env_substitution(self.get_source())
 
         if code != 0:
@@ -277,12 +293,17 @@ class ScriptModule(Module):
             if type(msg) is str and len(msg.strip()) > 0:
                 print(f".... [{self.get_name()}.source.script]: {msg.strip()}")
             print(f".... PROGRESS [{self.get_name()}]: Running init script")
-            msg, code = self.run("init", print_output=True, monitor_output=MonitorOutput(
-                title=f"Initializing {self.get_name()}",
-                subtitle="...",
-                console=console,
-                log_path=log_path
-            ))
+
+            mon = None
+            if console is not None and log_path is not None:
+                mon = MonitorOutput(
+                    title=f"Initializing {self.get_name()}",
+                    subtitle="...",
+                    console=console,
+                    log_path=log_path
+                )
+
+            msg, code = self.run("init", print_output=True, monitor_output=mon)
 
             if code != 0:
                 print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)

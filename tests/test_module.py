@@ -47,7 +47,7 @@ class TestModuleInitializationSuccess(unittest.TestCase):
 
         # assert
         self.assertTrue(result)
-        mock_run.assert_called_once_with('init', print_output=True)
+        mock_run.assert_called_once_with('init', monitor_output=None)
 
     @mock.patch.object(Module, 'run')
     def test_initialize_failure(self, mock_run):
@@ -59,7 +59,7 @@ class TestModuleInitializationSuccess(unittest.TestCase):
 
         # assert
         self.assertFalse(result)
-        mock_run.assert_called_once_with('init', print_output=True)
+        mock_run.assert_called_once_with('init', monitor_output=None)
 
     @mock.patch.object(Module, 'run')
     def test_destroy_success(self, mock_run):
@@ -71,7 +71,7 @@ class TestModuleInitializationSuccess(unittest.TestCase):
 
         # assert
         self.assertTrue(result)
-        mock_run.assert_called_once_with('destroy', print_output=True)
+        mock_run.assert_called_once_with('destroy', monitor_output=None)
 
     @mock.patch.object(Module, 'run')
     def test_destroy_failure(self, mock_run):
@@ -83,7 +83,7 @@ class TestModuleInitializationSuccess(unittest.TestCase):
 
         # assert
         self.assertFalse(result)
-        mock_run.assert_called_once_with('destroy', print_output=True)
+        mock_run.assert_called_once_with('destroy', monitor_output=None)
 
 
 class TestModuleInitializationFails(unittest.TestCase):

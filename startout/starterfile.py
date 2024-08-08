@@ -113,7 +113,7 @@ class Starter:
 
             return modules_match and tools_match and module_deps_match and tool_deps_match
 
-    def up(self, console: Console, log: Path, teardown_on_failure=True, fail_early=True):
+    def up(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True, fail_early=True):
         """
         Installs all Tools, all Modules, and performs environment variable replacement on a Startersteps.md file (if
         applicable)
@@ -210,7 +210,7 @@ class Starter:
         # If all tools were successfully installed or were already installed
         return True
 
-    def install_modules(self, console: Console, log: Path, teardown_on_failure=True, fail_early=True):
+    def install_modules(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True, fail_early=True):
         """
         Install modules layer by layer so that their dependencies are all met before being installed.
 

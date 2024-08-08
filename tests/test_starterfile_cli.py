@@ -23,7 +23,7 @@ class Starter:
     def set_init_options(self, _):
         pass
 
-    def up(self):
+    def up(self, _, __):
         return self.mock_up_succeeds
 
 
@@ -56,10 +56,14 @@ class TestStarterFileCLI(unittest.TestCase):
         self.console_patcher = patch('startout.paths.console', autospec=True)
         self.mock_console = self.console_patcher.start()
 
+        self.console_height_patcher = patch('startout.paths.console.height', new=4)
+        self.console_height_patcher.start()
+
         self.mock_starter_valid = Starter("MockStarter")
 
     def tearDown(self):
         self.console_patcher.stop()
+        self.console_height_patcher.stop()
         os.chdir(self.safe_dir)
 
     # fmt: off
@@ -99,7 +103,7 @@ class TestStarterFileCLI(unittest.TestCase):
     @mock.patch('startout.paths.gh_api.check_repo_custom_property')
     @mock.patch('startout.paths.re.match')
     def test_starterfile_up_init_options(self, mock_re, mock_check, mock_new_owner, mock_init_repo, mock_chdir,
-                                          mock_open, mock_parse, mock_prompt):
+                                         mock_open, mock_parse, mock_prompt):
         #####################
         # Define interactions
         self.mock_console.input.side_effect = [""]  # Simulate pressing enter to take default

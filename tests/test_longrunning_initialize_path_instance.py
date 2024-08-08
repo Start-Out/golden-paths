@@ -20,7 +20,7 @@ class Starter:
     def set_init_options(self, _):
         pass
 
-    def up(self):
+    def up(self, _, __):
         return self.mock_up_succeeds
 
 
