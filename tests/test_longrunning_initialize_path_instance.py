@@ -20,7 +20,7 @@ class Starter:
     def set_init_options(self, _):
         pass
 
-    def up(self):
+    def up(self, _, __):
         return self.mock_up_succeeds
 
 
@@ -164,3 +164,4 @@ class TestInitializePathInstance(unittest.TestCase):
 
         startout.paths.initialize_path_instance(self.startout_path_template_name, self.new_repo_name,
                                                 self.new_repo_owner, self.public)
+

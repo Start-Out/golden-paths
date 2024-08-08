@@ -46,10 +46,10 @@ class Module:
     def check(self):
         return self.mock_check  # mock uninitialized module
 
-    def initialize(self):
+    def initialize(self, console=None, log_path=None):
         return self.mock_initialize  # mock successful installation
 
-    def destroy(self):
+    def destroy(self, console=None, log_path=None):
         return self.mock_destroy
 
 
