@@ -1,5 +1,5 @@
 import pytest
-import sys
+
 from startout import starterfile
 
 

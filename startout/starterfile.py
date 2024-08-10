@@ -2,7 +2,7 @@ import itertools
 import os
 import sys
 from pathlib import Path
-from typing import TextIO
+from typing import TextIO, List
 
 import yaml
 from dotenv import load_dotenv
@@ -85,8 +85,8 @@ class Starter:
         }
     )
 
-    def __init__(self, modules: list[Module], tools: list[Tool], module_dependencies: list[list[str]],
-                 tool_dependencies: list[list[str]]):
+    def __init__(self, modules: List[Module], tools: List[Tool], module_dependencies: List[List[str]],
+                 tool_dependencies: List[List[str]]):
         """
         Initializes the class instance with given modules, tools, module dependencies, and tool dependencies.
 
@@ -307,7 +307,7 @@ class Starter:
             option.value = value
 
 
-def create_dependency_layers(items: list[Module or Tool]) -> list[list[str]]:
+def create_dependency_layers(items: List[Module or Tool]) -> List[List[str]]:
     """
     Generate dependency layers based on the given items such that each inner list's dependencies are all contained
     within the preceding inner list (the first inner list has no dependencies).

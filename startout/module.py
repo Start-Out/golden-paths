@@ -5,6 +5,7 @@ from pathlib import Path
 
 from rich.console import Console
 from schema import Schema, And, Or, Optional, Use
+from typing import List, Dict, Tuple
 
 from startout.init_option import InitOption
 from startout.util import replace_env, run_script_with_env_substitution, get_script, MonitorOutput, monitored_subprocess
@@ -80,19 +81,19 @@ class Module:
                 }
             ),
             "scripts": module_scripts_schema,
-            Optional("depends_on"): Or(str, list[str]),
-            Optional("init_options"): list[Schema(
+            Optional("depends_on"): Or(str, List[str]),
+            Optional("init_options"): List[Schema(
                 {
-                    "env_name": And(str, len),
-                    "type": And(str, len),
-                    "default": And(str, len),
-                    "prompt": And(str, len),
+                    "env_name": And(str),
+                    "type": And(str),
+                    "default": And(str),
+                    "prompt": And(str),
                 }
             )]
         }
     )
 
-    def __init__(self, name: str, dest: str, source: str, scripts: dict[str, str], dependencies=None,
+    def __init__(self, name: str, dest: str, source: str, scripts: Dict[str, str], dependencies=None,
                  init_options=None):
         """
         Initialize a new Module instance.
@@ -133,7 +134,7 @@ class Module:
     def get_source(self):
         return replace_env(self.source)
 
-    def run(self, script: str, print_output: bool = False, monitor_output: MonitorOutput or None = None) -> tuple[
+    def run(self, script: str, print_output: bool = False, monitor_output: MonitorOutput or None = None) -> Tuple[
         str, int]:
         """
         Runs a script with environment variable substitutions.

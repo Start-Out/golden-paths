@@ -14,6 +14,7 @@ import rich
 from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
+from typing import List, Dict, Tuple
 
 
 class MonitorOutput:
@@ -41,7 +42,7 @@ def bool_to_yn(bool_input: bool) -> str:
     return lex[bool_input]
 
 
-def bool_to_strings(bool_input: bool) -> list[str]:
+def bool_to_strings(bool_input: bool) -> List[str]:
     """
     Converts a boolean value to a list of corresponding strings.
 
@@ -79,7 +80,7 @@ def string_to_bool(string_input: str) -> bool or None:
     return lex.get(string_input.lower(), None)
 
 
-def get_script(script: str, scripts_dict: dict[str, str], name: str) -> str or None:
+def get_script(script: str, scripts_dict: Dict[str, str], name: str) -> str or None:
     """
     Get the script based on the platform and provided parameters.
 
@@ -166,7 +167,7 @@ def replace_env(string: str) -> str:
 
 
 def run_script_with_env_substitution(script_str: str, verbose: bool = False,
-                                     monitor_output: MonitorOutput or None = None) -> tuple[str, int]:
+                                     monitor_output: MonitorOutput or None = None) -> Tuple[str, int]:
     """
     Run a script with environment variable substitution. If the script fails to run as a shlex'd list, run it as a
     string instead.
@@ -251,9 +252,9 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False,
 
 # Code snippet used with permission @Hubro https://github.com/Textualize/rich/discussions/2885#discussioncomment-5382390
 def monitored_subprocess(
-        command: list[str] or str,
-        title: str | None,
-        subtitle: str | None,
+        command: List[str] or str,
+        title: str or None,
+        subtitle: str or None,
         console: Console,
         shell: bool = False,
 ):
