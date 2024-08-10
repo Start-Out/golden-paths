@@ -2,7 +2,7 @@ from typing import List, Dict, Tuple
 
 from schema import Schema, And, Or, Optional
 
-from startout.util import run_script_with_env_substitution, get_script
+from startout.util import run_script_with_env_substitution, get_script, validate_str_list
 
 
 class Tool:
@@ -63,7 +63,7 @@ class Tool:
     )
     tool_schema = Schema(
         {
-            Optional("depends_on"): Or(str, List[str]),
+            Optional("depends_on"): Or(str, validate_str_list),
             "scripts": tool_scripts_schema
         }
     )

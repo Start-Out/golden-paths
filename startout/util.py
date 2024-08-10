@@ -25,6 +25,9 @@ class MonitorOutput:
         self.log_path = log_path
 
 
+def validate_str_list(value):
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
 def bool_to_yn(bool_input: bool) -> str:
     """
     Converts a boolean value to a 'y' or 'n' string representation.

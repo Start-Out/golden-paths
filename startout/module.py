@@ -8,7 +8,8 @@ from rich.console import Console
 from schema import Schema, And, Or, Optional, Use
 
 from startout.init_option import InitOption
-from startout.util import replace_env, run_script_with_env_substitution, get_script, MonitorOutput, monitored_subprocess
+from startout.util import replace_env, run_script_with_env_substitution, get_script, MonitorOutput, \
+    monitored_subprocess, validate_str_list
 
 
 def check_for_key(name: str, key: str, scripts: dict):
@@ -89,7 +90,7 @@ class Module:
                 }
             ),
             "scripts": module_scripts_schema,
-            Optional("depends_on"): Or(str, List[str]),
+            Optional("depends_on"): Or(str, validate_str_list),
             Optional("init_options"): [module_init_options_schema]
         }
     )
