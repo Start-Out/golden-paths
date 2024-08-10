@@ -2,10 +2,10 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import List, Dict, Tuple
 
 from rich.console import Console
 from schema import Schema, And, Or, Optional, Use
-from typing import List, Dict, Tuple
 
 from startout.init_option import InitOption
 from startout.util import replace_env, run_script_with_env_substitution, get_script, MonitorOutput, monitored_subprocess
@@ -59,18 +59,26 @@ class Module:
     module_scripts_schema = Schema(
         Or(
             {
-                Optional(str): And(str),
+                Optional(str): str,
                 Optional("windows"): {
-                    Optional(str): And(str)
+                    Optional(str): str
                 },
                 Optional("mac"): {
-                    Optional(str): And(str)
+                    Optional(str): str
                 },
                 Optional("linux"): {
-                    Optional(str): And(str)
+                    Optional(str): str
                 },
             },
         )
+    )
+    module_init_options_schema = Schema(
+        {
+            "env_name": str,
+            "type": str,
+            "default": str,
+            "prompt": str,
+        }
     )
     module_schema = Schema(
         {
@@ -82,14 +90,7 @@ class Module:
             ),
             "scripts": module_scripts_schema,
             Optional("depends_on"): Or(str, List[str]),
-            Optional("init_options"): List[Schema(
-                {
-                    "env_name": And(str),
-                    "type": And(str),
-                    "default": And(str),
-                    "prompt": And(str),
-                }
-            )]
+            Optional("init_options"): [module_init_options_schema]
         }
     )
 
