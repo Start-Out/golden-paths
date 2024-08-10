@@ -8,13 +8,14 @@ import sys
 from collections import deque
 from io import TextIOWrapper
 from pathlib import Path
+from typing import List, Dict, Tuple
 
 import click
 import rich
 from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
-from typing import List, Dict, Tuple
+from schema import SchemaError
 
 
 class MonitorOutput:
@@ -27,6 +28,14 @@ class MonitorOutput:
 
 def validate_str_list(value):
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def is_yaml_loadable_type(value):
+    yaml_loadable_types = (str, int, float, bool, list, dict, type(None))
+    if not isinstance(value, yaml_loadable_types):
+        raise SchemaError(f"Provided type {type(value).__name__} cannot be loaded by yaml.safe_load")
+    return value
+
 
 def bool_to_yn(bool_input: bool) -> str:
     """
@@ -264,6 +273,7 @@ def monitored_subprocess(
     """
     Run a subprocess while displaying the output in a temporary box with Rich
     """
+    stdout_output = ""
 
     box_height = min(max([console.height // 4, 6]), 12)
     box_inner_height = box_height - 2  # The panel has 1 row of padding on each side
@@ -292,6 +302,7 @@ def monitored_subprocess(
         try:
             for line in process.stdout:
                 buffer.append(line[:box_width].rstrip())
+                stdout_output += line
         except KeyboardInterrupt:
             process.terminate()
             raise click.Abort()
@@ -302,6 +313,6 @@ def monitored_subprocess(
 
         # create a CompletedProcess instance
         completed_process = subprocess.CompletedProcess(args=command, returncode=process.returncode,
-                                                        stdout=process.stdout, stderr=process.stderr)
+                                                        stdout=stdout_output, stderr=process.stderr)
 
     return completed_process

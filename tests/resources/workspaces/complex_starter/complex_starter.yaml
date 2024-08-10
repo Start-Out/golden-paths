@@ -1,0 +1,78 @@
+env_file:
+  - complex.env
+
+tools:
+  nodejs:
+    scripts:
+      check: |
+        exit 0
+      windows:
+        install: scoop install nodejs
+        uninstall: scoop uninstall nodejs
+      mac:
+        install: brew install node
+        uninstall: brew uninstall node
+      linux:
+        install: sudo apt install npm
+        uninstall: sudo apt remove npm
+  pnpm:
+    depends_on: nodejs
+    scripts:
+      install: npm install -g pnpm
+      uninstall: npm uninstall -g pnpm
+      check: exit 0
+  create-react-app:
+    depends_on: nodejs
+    scripts:
+      install: npm install -g create-react-app
+      uninstall: npm uninstall -g create-react-app
+      check: exit 0
+  git-hooks:
+    depends_on: nodejs
+    # Only works with git>=2.9.0
+    scripts:
+      check: exit 0
+      install: git config --local core.hooksPath .githooks/
+      uninstall: git config --local --unset core.hooksPath
+
+modules:
+  postgresql:
+    dest: ${POSTGRES_DEST}
+    source:
+      git: git@github.com:Start-Out/module-postgresql.git
+    scripts:
+      init: exit 0
+      destroy: rm -rf ./${POSTGRES_DEST}
+      windows:
+        destroy: rm ./${POSTGRES_DEST} -r -fo
+  express:
+    depends_on:
+      - postgresql
+    dest: ${EXPRESS_DEST}
+    source:
+      git: git@github.com:Start-Out/module-express.git
+    scripts:
+      init: exit 0
+      destroy: rm -rf ./${EXPRESS_DEST}
+      windows:
+        destroy: rm ./${EXPRESS_DEST} -r -fo
+  react:
+    dest: tmp
+    init_options:
+      - env_name: MODULE_REACT_USE_TYPESCRIPT
+        default: true
+        prompt: Would you like to use TypeScript instead of JavaScript?
+      - env_name: MODULE_REACT_APP_NAME
+        default: startout-react-app
+        prompt: What should the React app to be called?
+    source:
+      git: git@github.com:Start-Out/module-react.git
+    scripts:
+      init: exit 0
+      start: |
+        cd ./${MODULE_REACT_APP_NAME}
+        pnpm start
+      destroy: rm -rf ./${MODULE_REACT_APP_NAME}
+      windows:
+        init: exit 0
+        destroy: rm ./${MODULE_REACT_APP_NAME} -r -fo

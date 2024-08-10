@@ -9,7 +9,7 @@ from schema import Schema, And, Or, Optional, Use
 
 from startout.init_option import InitOption
 from startout.util import replace_env, run_script_with_env_substitution, get_script, MonitorOutput, \
-    monitored_subprocess, validate_str_list
+    monitored_subprocess, validate_str_list, is_yaml_loadable_type
 
 
 def check_for_key(name: str, key: str, scripts: dict):
@@ -76,8 +76,8 @@ class Module:
     module_init_options_schema = Schema(
         {
             "env_name": str,
-            "type": str,
-            "default": str,
+            Optional("type"): is_yaml_loadable_type,
+            "default": is_yaml_loadable_type,
             "prompt": str,
         }
     )
