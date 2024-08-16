@@ -1,8 +1,19 @@
+from enum import Enum
 from typing import List, Dict, Tuple
 
 from schema import Schema, And, Or, Optional
 
 from startout.util import run_script_with_env_substitution, get_script, validate_str_list
+
+
+class InstallationStatus(Enum):
+    EXISTING_INSTALLATION = 0
+    NEWLY_INSTALLED = 1
+    NOT_INSTALLED = 2
+
+
+def should_rollback(installation_status: InstallationStatus):
+    return installation_status == InstallationStatus.NEWLY_INSTALLED
 
 
 class Tool:
@@ -88,6 +99,7 @@ class Tool:
         self.name = name
         self.dependencies = dependencies
         self.scripts = scripts
+        self.status = InstallationStatus.NOT_INSTALLED
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__

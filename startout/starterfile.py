@@ -10,7 +10,7 @@ from rich.console import Console
 from schema import Schema, And, Or, Optional, Use
 
 from startout.module import Module, create_module
-from startout.tool import Tool
+from startout.tool import Tool, InstallationStatus, should_rollback
 from startout.util import replace_env
 
 
@@ -173,15 +173,18 @@ class Starter:
                 # Use the tool's check function to prevent attempts to install an existing tool
                 if tool.check():
                     print(f".. Tool '{tool.name}' is already installed, skipping.")
+                    tool.status = InstallationStatus.EXISTING_INSTALLATION
                     continue
 
                 # Initialize this tool, adding it to the list of failures if it cannot be initialized
                 if not tool.initialize():
                     failed_tools.append(tool.name)
+                    tool.status = InstallationStatus.NOT_INSTALLED
                     if fail_early:
                         early_exit = True
                 else:
                     successful_tools.append(tool.name)
+                    tool.status = InstallationStatus.NEWLY_INSTALLED
 
             if early_exit:
                 break
@@ -192,10 +195,12 @@ class Starter:
 
             # ... and teardown if specified
             if teardown_on_failure:
-                print("Rolling back successfully installed tools:", successful_tools, file=sys.stderr)
+                tools_to_rollback = [tool for tool in self.tools if tool.name in successful_tools and should_rollback(tool.status)]
+
+                print("Rolling back these installed tools:", tools_to_rollback, file=sys.stderr)
 
                 destroyed_tools = []
-                for tool in [tool for tool in self.tools if tool.name in successful_tools]:
+                for tool in tools_to_rollback:
                     if not tool.destroy():
                         # TODO handle failure to destroy better
                         print(f"FATAL: Failed to destroy tool \"{tool.name}\"", file=sys.stderr)

@@ -1,6 +1,8 @@
 import pytest
+from parameterized import parameterized
 
-from startout.tool import Tool
+from startout import tool
+from startout.tool import Tool, InstallationStatus
 
 
 def test_init_valid_scripts():
@@ -95,3 +97,11 @@ def test_destroy_success(valid_portable_tool):
 
 def test_destroy_failure(valid_portable_tool_with_failing_scripts):
     assert not valid_portable_tool_with_failing_scripts.destroy()
+
+@parameterized.expand([
+    (InstallationStatus.EXISTING_INSTALLATION, False),
+    (InstallationStatus.NEWLY_INSTALLED, True),
+    (InstallationStatus.EXISTING_INSTALLATION, False),
+])
+def test_rollback_util(installation_status: InstallationStatus, should_rollback: bool):
+    assert tool.should_rollback(installation_status) == should_rollback
