@@ -5,6 +5,36 @@ import shlex
 import shutil
 import subprocess
 import sys
+from collections import deque
+from io import TextIOWrapper
+from pathlib import Path
+from typing import List, Dict, Tuple
+
+import click
+import rich
+from rich.console import Console
+from rich.live import Live
+from rich.panel import Panel
+from schema import SchemaError
+
+
+class MonitorOutput:
+    def __init__(self, title: str, subtitle: str, console: Console, log_path: Path):
+        self.title = title
+        self.subtitle = subtitle
+        self.console = console
+        self.log_path = log_path
+
+
+def validate_str_list(value):
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def is_yaml_loadable_type(value):
+    yaml_loadable_types = (str, int, float, bool, list, dict, type(None))
+    if not isinstance(value, yaml_loadable_types):
+        raise SchemaError(f"Provided type {type(value).__name__} cannot be loaded by yaml.safe_load")
+    return value
 
 
 def bool_to_yn(bool_input: bool) -> str:
@@ -24,7 +54,7 @@ def bool_to_yn(bool_input: bool) -> str:
     return lex[bool_input]
 
 
-def bool_to_strings(bool_input: bool) -> list[str]:
+def bool_to_strings(bool_input: bool) -> List[str]:
     """
     Converts a boolean value to a list of corresponding strings.
 
@@ -62,7 +92,7 @@ def string_to_bool(string_input: str) -> bool or None:
     return lex.get(string_input.lower(), None)
 
 
-def get_script(script: str, scripts_dict: dict[str, str], name: str) -> str or None:
+def get_script(script: str, scripts_dict: Dict[str, str], name: str) -> str or None:
     """
     Get the script based on the platform and provided parameters.
 
@@ -148,11 +178,13 @@ def replace_env(string: str) -> str:
     return string
 
 
-def run_script_with_env_substitution(script_str: str, verbose: bool = False) -> tuple[str, int]:
+def run_script_with_env_substitution(script_str: str, verbose: bool = False,
+                                     monitor_output: MonitorOutput or None = None) -> Tuple[str, int]:
     """
     Run a script with environment variable substitution. If the script fails to run as a shlex'd list, run it as a
     string instead.
 
+    :param monitor_output: Options for running the script with monitored output
     :param verbose: Whether to print warning if the script fails to run as a shlex'd list or not.
     :param script_str: The script to be executed as a string.
     :return: A tuple containing the stdout output and the return code of the script.
@@ -167,7 +199,7 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False) -> 
     try:
         # If shutil can't find the command or the script is multiline, run as shell
         if shutil.which(_script[0]) is None or multiline:
-            if verbose:
+            if shutil.which(_script[0]) is None and verbose:
                 print(f"'{_script[0]}' is not installed. Trying script in shell.", file=sys.stderr)
 
             _os = platform.system().lower()
@@ -175,26 +207,112 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False) -> 
 
             if windows:
                 windows_shell = "pwsh" if shutil.which("pwsh") is not None else "powershell"
-                result = subprocess.run([
+                cmd = [
                     windows_shell,
                     "-Command",
                     substituted_script
-                ])
+                ]
+
+                if monitor_output is None:
+                    result = subprocess.run(cmd)
+                else:
+                    result = monitored_subprocess(
+                        command=cmd,
+                        title=monitor_output.title,
+                        subtitle=monitor_output.subtitle,
+                        console=monitor_output.console
+                    )
             else:
+                if monitor_output is None:
+                    result = subprocess.run(
+                        substituted_script,
+                        shell=True,
+                        text=True,
+                        capture_output=True
+                    )
+                else:
+                    result = monitored_subprocess(
+                        command=substituted_script,
+                        title=monitor_output.title,
+                        subtitle=monitor_output.subtitle,
+                        console=monitor_output.console,
+                        shell=True
+                    )
+        # Else, run the shlex'd cmd list
+        else:
+            if monitor_output is None:
                 result = subprocess.run(
-                    substituted_script,
-                    shell=True,
+                    _script,
                     text=True,
                     capture_output=True
                 )
-        # Else, run the shlex'd cmd list
-        else:
-            result = subprocess.run(
-                _script,
-                text=True,
-                capture_output=True
-            )
+            else:
+                result = monitored_subprocess(
+                    command=_script,
+                    title=monitor_output.title,
+                    subtitle=monitor_output.subtitle,
+                    console=monitor_output.console
+                )
     except subprocess.CalledProcessError as e:
         return f"{e.stderr.strip()}", e.returncode
 
+    if isinstance(result.stdout, TextIOWrapper):
+        result.stdout = result.stdout.read()
+
     return str(result.stdout), result.returncode
+
+
+# Code snippet used with permission @Hubro https://github.com/Textualize/rich/discussions/2885#discussioncomment-5382390
+def monitored_subprocess(
+        command: List[str] or str,
+        title: str or None,
+        subtitle: str or None,
+        console: Console,
+        shell: bool = False,
+):
+    """
+    Run a subprocess while displaying the output in a temporary box with Rich
+    """
+    stdout_output = ""
+
+    box_height = min(max([console.height // 4, 6]), 12)
+    box_inner_height = box_height - 2  # The panel has 1 row of padding on each side
+    box_width = console.width - 4  # The panel has 2 cols of padding on each side
+
+    buffer = deque(maxlen=box_inner_height)
+
+    def process_panel() -> Panel:
+        return Panel(
+            "\n".join(buffer), height=box_height, title=title, subtitle=subtitle
+        )
+
+    with rich.live.Live(
+            get_renderable=process_panel, refresh_per_second=30, transient=True
+    ):
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding="UTF-8",
+            shell=shell,
+        )
+
+        assert process.stdout
+
+        try:
+            for line in process.stdout:
+                buffer.append(line[:box_width].rstrip())
+                stdout_output += line
+        except KeyboardInterrupt:
+            process.terminate()
+            raise click.Abort()
+        finally:
+            # Always wait for the process to terminate, or we might fail later
+            # cleanup steps
+            process.wait()
+
+        # create a CompletedProcess instance
+        completed_process = subprocess.CompletedProcess(args=command, returncode=process.returncode,
+                                                        stdout=stdout_output, stderr=process.stderr)
+
+    return completed_process

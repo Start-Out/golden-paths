@@ -1,11 +1,15 @@
 import shutil
 import subprocess
 import sys
+from pathlib import Path
+from typing import List, Dict, Tuple
 
+from rich.console import Console
 from schema import Schema, And, Or, Optional, Use
 
 from startout.init_option import InitOption
-from startout.util import replace_env, run_script_with_env_substitution, get_script
+from startout.util import replace_env, run_script_with_env_substitution, get_script, MonitorOutput, \
+    monitored_subprocess, validate_str_list, is_yaml_loadable_type
 
 
 def check_for_key(name: str, key: str, scripts: dict):
@@ -27,7 +31,8 @@ def check_for_key(name: str, key: str, scripts: dict):
                     missing_platforms.append(_platform)
             if len(missing_platforms) > 0:
                 raise TypeError(
-                    f"Script 'init' not fully defined for module \"{name}\" (missing {missing_platforms}). Failed to create Module.")
+                    f"Script 'init' not fully defined for module \"{name}\" (missing {missing_platforms}). "
+                    f"Failed to create Module.")
 
 
 class Module:
@@ -44,7 +49,8 @@ class Module:
 
     Attributes:
         name (str): The name of the module.
-        dest (str): The destination of the module (usually used as the name of the directory into which the module is installed).
+        dest (str): The destination of the module (usually used as the name of the directory into which the module
+        is installed).
         source (dict): The source of the module, given as any ONE of [git, curl, script, docker].
         scripts (dict): Scripts associated with the module.
         dependencies (str or list[str]): Dependencies of the module. (Optional)
@@ -54,18 +60,26 @@ class Module:
     module_scripts_schema = Schema(
         Or(
             {
-                Optional(str): And(str),
+                Optional(str): str,
                 Optional("windows"): {
-                    Optional(str): And(str)
+                    Optional(str): str
                 },
                 Optional("mac"): {
-                    Optional(str): And(str)
+                    Optional(str): str
                 },
                 Optional("linux"): {
-                    Optional(str): And(str)
+                    Optional(str): str
                 },
             },
         )
+    )
+    module_init_options_schema = Schema(
+        {
+            "env_name": str,
+            Optional("type"): is_yaml_loadable_type,
+            "default": is_yaml_loadable_type,
+            "prompt": str,
+        }
     )
     module_schema = Schema(
         {
@@ -76,19 +90,12 @@ class Module:
                 }
             ),
             "scripts": module_scripts_schema,
-            Optional("depends_on"): Or(str, list[str]),
-            Optional("init_options"): list[Schema(
-                {
-                    "env_name": And(str, len),
-                    "type": And(str, len),
-                    "default": And(str, len),
-                    "prompt": And(str, len),
-                }
-            )]
+            Optional("depends_on"): Or(str, validate_str_list),
+            Optional("init_options"): [module_init_options_schema]
         }
     )
 
-    def __init__(self, name: str, dest: str, source: str, scripts: dict[str, str], dependencies=None,
+    def __init__(self, name: str, dest: str, source: str, scripts: Dict[str, str], dependencies=None,
                  init_options=None):
         """
         Initialize a new Module instance.
@@ -100,10 +107,10 @@ class Module:
         :param dependencies: (optional) A list of module names that this module depends on. Defaults to None.
         :param init_options: (optional) Additional options for module initialization. Defaults to None.
         """
-        if get_script("init", scripts, name) is None:
-            raise TypeError(f"No 'init' script defined for module \"{name}\". Failed to create Module.")
-        if get_script("destroy", scripts, name) is None:
-            raise TypeError(f"No 'destroy' script defined for module \"{name}\". Failed to create Module.")
+
+        # These calls will raise an exception if the script is not present
+        get_script("init", scripts, name)
+        get_script("destroy", scripts, name)
 
         self.name = name
         self.dest = dest
@@ -129,10 +136,12 @@ class Module:
     def get_source(self):
         return replace_env(self.source)
 
-    def run(self, script: str, print_output: bool = False) -> tuple[str, int]:
+    def run(self, script: str, print_output: bool = False, monitor_output: MonitorOutput or None = None) -> Tuple[
+        str, int]:
         """
         Runs a script with environment variable substitutions.
 
+        :param monitor_output:
         :param script: The name of the script to be executed, located in the Module's scripts.
         :param print_output: Whether to print the response at the .... level
         :return: A tuple containing the stdout output and the return code of the script execution.
@@ -140,20 +149,30 @@ class Module:
         if script not in self.scripts:
             raise ValueError(f"Module \"{self.name}\" does not have script '{script}' in {list(self.scripts.keys())}")
 
-        response, code = run_script_with_env_substitution(get_script(script, self.scripts, self.get_name()))
+        response, code = run_script_with_env_substitution(get_script(script, self.scripts, self.get_name()),
+                                                          monitor_output=monitor_output)
 
         if print_output and type(response) is str and len(response.strip()) > 0:
             print(f".... [{self.get_name()}.{script}]: {response.strip()}")
 
         return response, code
 
-    def initialize(self):
+    def initialize(self, console: Console or None = None, log_path: Path or None = None):
         """
         Run the Module's 'init' script.
 
         :return: True if the response code is 0, False otherwise.
         """
-        msg, code = self.run("init", print_output=True)
+        mon = None
+        if console is not None and log_path is not None:
+            mon = MonitorOutput(
+                title=f"Initializing {self.get_name()}",
+                subtitle="...",
+                console=console,
+                log_path=log_path
+            )
+
+        msg, code = self.run("init", monitor_output=mon)
 
         if code != 0:
             print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
@@ -162,13 +181,22 @@ class Module:
             print(f".. SUCCESS [{self.get_name()}]: Initialized module {self.get_name()}")
             return True
 
-    def destroy(self):
+    def destroy(self, console: Console or None = None, log_path: Path or None = None):
         """
         Run the Module's 'destroy' script.
 
         :return: True if the response code is 0, False otherwise.
         """
-        msg, code = self.run("destroy", print_output=True)
+        mon = None
+        if console is not None and log_path is not None:
+            mon = MonitorOutput(
+                title=f"Initializing {self.get_name()}",
+                subtitle="...",
+                console=console,
+                log_path=log_path
+            )
+
+        msg, code = self.run("destroy", monitor_output=mon)
 
         if code != 0:
             print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
@@ -203,7 +231,7 @@ class GitModule(Module):
 
     """
 
-    def initialize(self):
+    def initialize(self, console: Console or None = None, log_path: Path or None = None):
         """
         Initializes the object by cloning `self.source` (a repository) to `self.dest` (a directory).
 
@@ -220,15 +248,33 @@ class GitModule(Module):
             self.get_source(),
             self.get_dest()
         ]
-        result = subprocess.run(cmd, text=True,
-                                capture_output=True)  # TODO hoist the feedback to the terminal, especially if it can be displayed by the CLI which enwraps it
+
+        if console is not None:
+            result = monitored_subprocess(
+                command=cmd,
+                title=f"Cloning {self.get_name()}",
+                subtitle="...",
+                console=console
+            )
+        else:
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         if result.returncode != 0:
             print(f".. FAILURE [{self.get_name()}]: {result.stdout.strip()}", file=sys.stderr)
             return False
         else:
             print(f".... PROGRESS [{self.get_name()}]: Cloned module {self.get_name()}, running init script")
-            msg, code = self.run("init", print_output=True)
+
+            mon = None
+            if console is not None and log_path is not None:
+                mon = MonitorOutput(
+                    title=f"Initializing {self.get_name()}",
+                    subtitle="...",
+                    console=console,
+                    log_path=log_path
+                )
+
+            msg, code = self.run("init", print_output=True, monitor_output=mon)
 
             if code != 0:
                 print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)
@@ -239,7 +285,7 @@ class GitModule(Module):
 
 
 class ScriptModule(Module):
-    def initialize(self):
+    def initialize(self, console: Console or None = None, log_path: Path or None = None):
         msg, code = run_script_with_env_substitution(self.get_source())
 
         if code != 0:
@@ -250,7 +296,17 @@ class ScriptModule(Module):
             if type(msg) is str and len(msg.strip()) > 0:
                 print(f".... [{self.get_name()}.source.script]: {msg.strip()}")
             print(f".... PROGRESS [{self.get_name()}]: Running init script")
-            msg, code = self.run("init", print_output=True)
+
+            mon = None
+            if console is not None and log_path is not None:
+                mon = MonitorOutput(
+                    title=f"Initializing {self.get_name()}",
+                    subtitle="...",
+                    console=console,
+                    log_path=log_path
+                )
+
+            msg, code = self.run("init", print_output=True, monitor_output=mon)
 
             if code != 0:
                 print(f".. FAILURE [{self.get_name()}]: {msg}", file=sys.stderr)

@@ -23,7 +23,8 @@ modules:
       init: exit 0
       destroy: exit 0
   dependent_module:
-    depends_on: module
+    depends_on:
+      - module
     dest: 2/equals/${ONE}
     source:
       script: exit 0

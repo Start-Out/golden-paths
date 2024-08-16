@@ -1,14 +1,17 @@
 import itertools
 import os
 import sys
-from typing import TextIO
+from pathlib import Path
+from typing import TextIO, List
 
 import yaml
 from dotenv import load_dotenv
+from rich.console import Console
 from schema import Schema, And, Or, Optional, Use
 
 from startout.module import Module, create_module
 from startout.tool import Tool
+from startout.util import replace_env
 
 
 class Starter:
@@ -82,8 +85,8 @@ class Starter:
         }
     )
 
-    def __init__(self, modules: list[Module], tools: list[Tool], module_dependencies: list[list[str]],
-                 tool_dependencies: list[list[str]]):
+    def __init__(self, modules: List[Module], tools: List[Tool], module_dependencies: List[List[str]],
+                 tool_dependencies: List[List[str]]):
         """
         Initializes the class instance with given modules, tools, module dependencies, and tool dependencies.
 
@@ -110,19 +113,34 @@ class Starter:
 
             return modules_match and tools_match and module_deps_match and tool_deps_match
 
-    def up(self, teardown_on_failure=True, fail_early=True):
+    def up(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True, fail_early=True):
         """
+        Installs all Tools, all Modules, and performs environment variable replacement on a Startersteps.md file (if
+        applicable)
+
+        :param console:
+        :param log:
         :param teardown_on_failure: A boolean flag to determine whether to perform teardown operations if any failure occurs during the method execution. Default value is `True`.
         :param fail_early: A boolean flag to determine whether to abort the process as soon as a tool or module fails to initialize. Default value is `False`.
         :return: A boolean value indicating whether the tools and modules installation was successful. Returns `True` if both tools and modules were installed successfully, otherwise returns `False`.
         """
         tools_installed = self.install_tools(teardown_on_failure, fail_early)
-        modules_installed = self.install_modules(teardown_on_failure, fail_early)
+        modules_installed = self.install_modules(console, log, teardown_on_failure, fail_early)
 
         if not tools_installed:
             print("ERROR: Failed to install tools!", file=sys.stderr)
         if not modules_installed:
             print("ERROR: Failed to install modules!", file=sys.stderr)
+
+        # If a Startersteps.md file is present, perform environment variable replacement
+        if Path("Startersteps.md").is_file():
+            new_lines = []
+            with open("Startersteps.md", "r") as steps_in:
+                new_lines.extend(steps_in.readlines())
+
+            with open("Startersteps.md", "w") as steps_out:
+                for line in new_lines:
+                    steps_out.write(replace_env(line))
 
         return tools_installed and modules_installed
 
@@ -192,10 +210,12 @@ class Starter:
         # If all tools were successfully installed or were already installed
         return True
 
-    def install_modules(self, teardown_on_failure=True, fail_early=True):
+    def install_modules(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True, fail_early=True):
         """
         Install modules layer by layer so that their dependencies are all met before being installed.
 
+        :param log:
+        :param console:
         :param teardown_on_failure: If True, rollback other tools if any module installation fails.
         :type teardown_on_failure: bool
         :param fail_early: If True, function will return false as soon as a tool fails to initialize.
@@ -219,7 +239,7 @@ class Starter:
 
             for module in (module for module in self.modules if module.name in layer):
                 # Initialize this module, adding it to the list of failures if it cannot be initialized
-                if not module.initialize():
+                if not module.initialize(console=console, log_path=log):
                     failed_modules.append(module.name)
                     if fail_early:
                         early_exit = True
@@ -241,7 +261,7 @@ class Starter:
 
                 destroyed_modules = []
                 for module in [module for module in self.modules if module.name in successful_modules]:
-                    if not module.destroy():
+                    if not module.destroy(console=console, log_path=log):
                         # TODO handle failure to destroy better
                         print(f"FATAL: Failed to destroy module \"{module.name}\"", file=sys.stderr)
                         print(f".. Only destroyed these modules: {destroyed_modules}", file=sys.stderr)
@@ -287,7 +307,7 @@ class Starter:
             option.value = value
 
 
-def create_dependency_layers(items: list[Module or Tool]) -> list[list[str]]:
+def create_dependency_layers(items: List[Module or Tool]) -> List[List[str]]:
     """
     Generate dependency layers based on the given items such that each inner list's dependencies are all contained
     within the preceding inner list (the first inner list has no dependencies).
@@ -310,7 +330,7 @@ def create_dependency_layers(items: list[Module or Tool]) -> list[list[str]]:
 
     if len(unmet_dependencies) > 0:
         print(f"ERROR: Dependency not met {unmet_dependencies}", file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     # Modules with no dependencies are added to the first layer
 
@@ -331,7 +351,7 @@ def create_dependency_layers(items: list[Module or Tool]) -> list[list[str]]:
         if len(added_items) == 0:
             print(f"ERROR: Could not meet dependencies for {[item.name for item in dependent_items]}, "
                   f"may be a circular dependency.", file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
         for added_item in added_items:
             dependent_items.remove(added_item)
@@ -356,8 +376,12 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
     loaded = yaml.safe_load(starterfile_stream)
 
     if "env_file" in loaded.keys():
-        for env_file in loaded["env_file"]:
-            _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
+        if type(loaded["env_file"]) is list:
+            for env_file in loaded["env_file"]:
+                _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
+                load_dotenv(str(_path))
+        elif type(loaded["env_file"]) is str:
+            _path = os.path.join(os.path.dirname(starterfile_stream.name), loaded["env_file"])
             load_dotenv(str(_path))
 
     Starter.starterfile_schema.validate(loaded)

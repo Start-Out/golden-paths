@@ -1,8 +1,8 @@
-import platform
+from typing import List, Dict, Tuple
 
 from schema import Schema, And, Or, Optional
 
-from startout.util import run_script_with_env_substitution, get_script
+from startout.util import run_script_with_env_substitution, get_script, validate_str_list
 
 
 class Tool:
@@ -63,12 +63,12 @@ class Tool:
     )
     tool_schema = Schema(
         {
-            Optional("depends_on"): Or(str, list[str]),
+            Optional("depends_on"): Or(str, validate_str_list),
             "scripts": tool_scripts_schema
         }
     )
 
-    def __init__(self, name: str, dependencies: list[str] or None, scripts: dict[str, str or dict[str, str]]):
+    def __init__(self, name: str, dependencies: List[str] or None, scripts: Dict[str, str or Dict[str, str]]):
         """
         Initializes a Tool with the given name, dependencies, and scripts.
 
@@ -95,7 +95,7 @@ class Tool:
     def __hash__(self):
         return hash((self.name, str(self.dependencies), str(self.scripts)))
 
-    def run(self, script: str) -> tuple[str, int]:
+    def run(self, script: str) -> Tuple[str, int]:
         """
         Runs a script with environment variable substitutions.
 
