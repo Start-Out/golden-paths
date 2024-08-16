@@ -6,6 +6,12 @@ from schema import Schema, And, Or, Optional
 from startout.util import run_script_with_env_substitution, get_script, validate_str_list
 
 
+class InstallationMode(Enum):
+    INSTALL = "INSTALL"
+    OPTIONAL = "OPTIONAL"
+    AS_ALT = "AS_ALT"
+
+
 class InstallationStatus(Enum):
     EXISTING_INSTALLATION = 0
     NEWLY_INSTALLED = 1
@@ -75,11 +81,14 @@ class Tool:
     tool_schema = Schema(
         {
             Optional("depends_on"): Or(str, validate_str_list),
+            Optional("mode"): Or("install", "optional", "as_alt"),
+            Optional("alt"): str,
             "scripts": tool_scripts_schema
         }
     )
 
-    def __init__(self, name: str, dependencies: List[str] or None, scripts: Dict[str, str or Dict[str, str]]):
+    def __init__(self, name: str, dependencies: List[str] or None, scripts: Dict[str, str or Dict[str, str]],
+                 alt: str or None = None, install_mode: str = "INSTALL"):
         """
         Initializes a Tool with the given name, dependencies, and scripts.
 
@@ -99,6 +108,10 @@ class Tool:
         self.name = name
         self.dependencies = dependencies
         self.scripts = scripts
+        self.alt = alt
+
+        self.mode = InstallationMode[install_mode.upper()]
+
         self.status = InstallationStatus.NOT_INSTALLED
 
     def __eq__(self, other):

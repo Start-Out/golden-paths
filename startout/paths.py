@@ -369,4 +369,4 @@ def startout_starter_app():
 
 
 if __name__ == "__main__":
-    startout_paths_app()
+    startout_starterfile_app()

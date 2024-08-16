@@ -10,7 +10,7 @@ from rich.console import Console
 from schema import Schema, And, Or, Optional, Use
 
 from startout.module import Module, create_module
-from startout.tool import Tool, InstallationStatus, should_rollback
+from startout.tool import Tool, InstallationStatus, should_rollback, InstallationMode
 from startout.util import replace_env
 
 
@@ -165,11 +165,13 @@ class Starter:
 
         failed_tools = []
         successful_tools = []
+        current_layer = -1
         for layer in self.tool_dependencies:
             # Install tools layer by layer so that their dependencies are all met before being installed
+            current_layer += 1
             early_exit = False
 
-            for tool in (tool for tool in self.tools if tool.name in layer):
+            for tool in (tool for tool in self.tools if tool.name in layer if tool.mode == InstallationMode.INSTALL):
                 # Use the tool's check function to prevent attempts to install an existing tool
                 if tool.check():
                     print(f".. Tool '{tool.name}' is already installed, skipping.")
@@ -178,11 +180,24 @@ class Starter:
 
                 # Initialize this tool, adding it to the list of failures if it cannot be initialized
                 if not tool.initialize():
-                    failed_tools.append(tool.name)
-                    tool.status = InstallationStatus.NOT_INSTALLED
-                    if fail_early:
-                        early_exit = True
+                    if tool.alt is None:
+                        print(f".. Tool '{tool.name}' failed to install.")
+                        failed_tools.append(tool.name)
+                        tool.status = InstallationStatus.NOT_INSTALLED
+                        if fail_early:
+                            early_exit = True
+                    else:
+                        alt = next((t for t in self.tools if t.name == tool.alt), None)
+
+                        print(f".. Tool '{tool.name}' failed to install, will use alt '{alt.name}' instead.")
+                        alt.mode = InstallationMode.INSTALL
+
+                        # Add the alt to the next dependency layer if it is not already accounted for
+                        if alt.name not in [tool_name for layer in self.tool_dependencies[current_layer:] for tool_name in layer]:
+                            self.tool_dependencies[current_layer].append(alt.name)
+
                 else:
+                    print(f".. Tool '{tool.name}' installed successfully.")
                     successful_tools.append(tool.name)
                     tool.status = InstallationStatus.NEWLY_INSTALLED
 
@@ -398,11 +413,16 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
         tool = Tool.tool_schema.validate(_tool)
 
         dependencies = tool["depends_on"] if "depends_on" in _tool else None
+        mode = tool["mode"] if "mode" in _tool else "INSTALL"
+        alt = tool["alt"] if "alt" in _tool else None
 
         if type(dependencies) is str:
             dependencies = [dependencies]
 
-        tools.append(Tool(tool_name, dependencies, tool["scripts"]))
+        if alt is not None:
+            dependencies.append(alt)
+
+        tools.append(Tool(tool_name, dependencies, tool["scripts"], alt, mode))
 
     tool_dependencies = create_dependency_layers(tools)
 
