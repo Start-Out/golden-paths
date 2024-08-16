@@ -124,7 +124,7 @@ class Starter:
         :param fail_early: A boolean flag to determine whether to abort the process as soon as a tool or module fails to initialize. Default value is `False`.
         :return: A boolean value indicating whether the tools and modules installation was successful. Returns `True` if both tools and modules were installed successfully, otherwise returns `False`.
         """
-        tools_installed = self.install_tools(teardown_on_failure, fail_early)
+        tools_installed = self.install_tools(teardown_on_failure, fail_early, console, log)
         modules_installed = self.install_modules(console, log, teardown_on_failure, fail_early)
 
         if not tools_installed:
@@ -144,10 +144,12 @@ class Starter:
 
         return tools_installed and modules_installed
 
-    def install_tools(self, teardown_on_failure=True, fail_early=True):
+    def install_tools(self, teardown_on_failure=True, fail_early=True, console: Console or None = None,
+                      log: Path or None = None, assumption: bool or None = None):
         """
         Install tools layer by layer so that their dependencies are all met before being installed.
 
+        :param assumption: When asking for input, assumes True or False if set
         :param teardown_on_failure: If True, rollback other tools if any tool installation fails.
         :type teardown_on_failure: bool
         :param fail_early: If True, function will return false as soon as a tool fails to initialize.
@@ -162,6 +164,16 @@ class Starter:
             return False
 
         print("Installing tools...")
+
+        for tool in (tool for tool in self.tools if tool.mode == InstallationMode.OPTIONAL):
+            if assumption is None:
+                potential_response = console.input(
+                    f"[input_prompt]Install {tool.name}? (y/N): [/]"
+                ).lower == "y"
+            else:
+                potential_response = assumption
+
+            tool.mode = InstallationMode.INSTALL if potential_response else InstallationMode.OPTIONAL
 
         failed_tools = []
         successful_tools = []
@@ -193,7 +205,8 @@ class Starter:
                         alt.mode = InstallationMode.INSTALL
 
                         # Add the alt to the next dependency layer if it is not already accounted for
-                        if alt.name not in [tool_name for layer in self.tool_dependencies[current_layer:] for tool_name in layer]:
+                        if alt.name not in [tool_name for layer in self.tool_dependencies[current_layer:] for tool_name
+                                            in layer]:
                             self.tool_dependencies[current_layer].append(alt.name)
 
                 else:
@@ -210,7 +223,8 @@ class Starter:
 
             # ... and teardown if specified
             if teardown_on_failure:
-                tools_to_rollback = [tool for tool in self.tools if tool.name in successful_tools and should_rollback(tool.status)]
+                tools_to_rollback = [tool for tool in self.tools if
+                                     tool.name in successful_tools and should_rollback(tool.status)]
 
                 print("Rolling back these installed tools:", tools_to_rollback, file=sys.stderr)
 
@@ -230,7 +244,9 @@ class Starter:
         # If all tools were successfully installed or were already installed
         return True
 
-    def install_modules(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True, fail_early=True):
+
+    def install_modules(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True,
+                        fail_early=True):
         """
         Install modules layer by layer so that their dependencies are all met before being installed.
 
@@ -295,6 +311,7 @@ class Starter:
         # If all modules were successfully initialized
         return True
 
+
     def get_init_options(self):
         """
         Returns a list of tuples containing the name and init_options of modules
@@ -304,6 +321,7 @@ class Starter:
                  of modules satisfying the condition.
         """
         return [(module.name, module.init_options) for module in self.modules if module.init_options is not None]
+
 
     def set_init_options(self, options):
         """

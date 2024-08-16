@@ -17,16 +17,17 @@ tools:
         uninstall: sudo apt remove npm
   pnpm:
     depends_on: nodejs
+    mode: install  # Default
     scripts:
       install: npm install -g pnpm
       uninstall: npm uninstall -g pnpm
       check: exit 0
   create-react-app:
     depends_on: nodejs
-    mode: install  # Default
+    mode: optional
     scripts:
-      install: npm install -g create-react-app
-      uninstall: npm uninstall -g create-react-app
+      install: exit 0
+      uninstall: exit 0
       check: exit 0
   broken:
     depends_on: nodejs
