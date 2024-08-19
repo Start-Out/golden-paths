@@ -78,7 +78,7 @@ def build_starter_2():
                 dest="2/equals/TWO",
                 source="exit 0",
                 scripts={
-                    "init": "exit 0",
+                    "init": "echo HAHAHA\nexit 0\n",
                     "destroy": "exit 0"
                 },
                 dependencies=["module"]
