@@ -98,12 +98,10 @@ class Tool:
 
         :raises TypeError: If the 'install' and 'uninstall' scripts are not defined for the module.
         """
-        if get_script("install", scripts, name=name) is None:
-            raise TypeError(f"No 'install' script defined for module \"{name}\". Failed to create Module.")
-        if get_script("uninstall", scripts, name=name) is None:
-            raise TypeError(f"No 'uninstall' script defined for module \"{name}\". Failed to create Module.")
-        if get_script("check", scripts, name=name) is None:
-            raise TypeError(f"No 'check' script defined for module \"{name}\". Failed to create Module.")
+        # These calls will raise ValueError if any are missing
+        get_script("install", scripts, name=name)
+        get_script("uninstall", scripts, name=name)
+        get_script("check", scripts, name=name)
 
         self.name = name
         self.dependencies = dependencies
