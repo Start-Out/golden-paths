@@ -2,8 +2,47 @@ import os
 import unittest
 from unittest.mock import patch
 
+import pytest
+
 from startout import util
 from startout.util import bool_to_yn, bool_to_strings, string_to_bool
+from startout.util import is_yaml_loadable_type, SchemaError
+
+
+def test_is_yaml_loadable_type_with_str():
+    assert is_yaml_loadable_type("example") == "example"
+
+
+def test_is_yaml_loadable_type_with_int():
+    assert is_yaml_loadable_type(123) == 123
+
+
+def test_is_yaml_loadable_type_with_float():
+    assert is_yaml_loadable_type(123.45) == 123.45
+
+
+def test_is_yaml_loadable_type_with_bool():
+    assert is_yaml_loadable_type(True) == True
+
+
+def test_is_yaml_loadable_type_with_list():
+    assert is_yaml_loadable_type([1, 2, 3]) == [1, 2, 3]
+
+
+def test_is_yaml_loadable_type_with_dict():
+    assert is_yaml_loadable_type({"key": "value"}) == {"key": "value"}
+
+
+def test_is_yaml_loadable_type_with_none():
+    assert is_yaml_loadable_type(None) == None
+
+
+def test_is_yaml_loadable_type_with_unloadable_type():
+    class UnloadableType:
+        pass
+
+    with pytest.raises(SchemaError):
+        is_yaml_loadable_type(UnloadableType())
 
 
 class TestGetScript(unittest.TestCase):
