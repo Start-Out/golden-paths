@@ -87,6 +87,9 @@ def test_parse_starterfile_succeeds(starterfile_path: str, expected_starter_fact
 
         expected_starter = expected_starter_factory()
 
+        print("Actual starter:", actual_starter)
+        print("Expected starter:", expected_starter)
+
         assert actual_starter == expected_starter
 
 

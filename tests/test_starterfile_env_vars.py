@@ -6,18 +6,11 @@ from unittest.mock import patch
 import startout.paths
 
 
-# @mock.patch('startout.paths.prompt_init_option')
-# @mock.patch('startout.paths.parse_starterfile')
-# @mock.patch('startout.paths.open')
-# @mock.patch('startout.paths.os.chdir')
-# @mock.patch('startout.paths.initialize_repo')
-# @mock.patch('startout.paths.new_repo_owner_interactive')
-# @mock.patch('startout.paths.gh_api.check_repo_custom_property')
-# @mock.patch('startout.paths.re.match')
 class TestStarterFileEnvironmentVariableFunctions(unittest.TestCase):
 
     def setUp(self):
         self.safe_dir = os.getcwd()
+        self.safe_env_vars = os.environ.copy()
 
         # Test parameters
         self.fully_formed_template_name = "Github/Repository"
@@ -44,6 +37,7 @@ API_KEY={self.mock_api_key}
         self.console_patcher.stop()
         self.console_height_patcher.stop()
         os.chdir(self.safe_dir)
+        os.environ.update(self.safe_env_vars)
 
     @mock.patch("startout.paths.initialize_repo")
     @mock.patch("startout.paths.gh_api.check_repo_custom_property")
@@ -74,6 +68,10 @@ API_KEY={self.mock_api_key}
         with open("final.env", "r") as f:
             updated = f.read()
             matching_contents = updated == self.final_env_file
+            print("== updated")
+            print(updated)
+            print("== expected")
+            print(self.final_env_file)
 
         with open("final.env", "w") as f:
             f.write(original_file_contents)
