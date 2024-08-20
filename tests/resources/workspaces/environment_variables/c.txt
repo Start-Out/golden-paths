@@ -1,0 +1,2 @@
+${ONE}
+The line previous to this should be '${ONE}'

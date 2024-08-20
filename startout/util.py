@@ -1,3 +1,4 @@
+import math
 import os
 import platform
 import re
@@ -24,6 +25,38 @@ class MonitorOutput:
         self.subtitle = subtitle
         self.console = console
         self.log_path = log_path
+
+
+SENSITIVE_PATTERNS = [
+    re.compile(r'API_KEY', re.IGNORECASE),
+    re.compile(r'TOKEN', re.IGNORECASE),
+    re.compile(r'PASSWORD', re.IGNORECASE),
+    re.compile(r'SECRET', re.IGNORECASE),
+    re.compile(r'PRIVATE_KEY', re.IGNORECASE),
+    re.compile(r'ACCESS_KEY', re.IGNORECASE)
+]
+
+HIGH_ENTROPY_THRESHOLD = 4.5
+
+
+def calculate_entropy(data):
+    if not data:
+        return 0
+    entropy = 0
+    for x in set(data):
+        p_x = data.count(x) / len(data)
+        entropy += - p_x * math.log2(p_x)
+    return entropy
+
+
+def is_potentially_sensitive_key_value(key, value):
+    # Check if key matches sensitive patterns
+    if any(pattern.search(key) for pattern in SENSITIVE_PATTERNS):
+        return True
+    # Check if value has high entropy
+    if calculate_entropy(value) > HIGH_ENTROPY_THRESHOLD:
+        return True
+    return False
 
 
 def validate_str_list(value):

@@ -1,0 +1,25 @@
+env_file: test.env
+
+tools:
+  tool:
+    scripts:
+      check: exit 0
+      install: exit 0
+      uninstall: exit 0
+
+modules:
+  module:
+    dest: path/to/module
+    source:
+      script: exit 0
+    scripts:
+      init: exit 0
+      destroy: exit 0
+    init_options:
+        - env_name: ONE
+          default: 1
+          prompt: How would you describe Smitty Werbenjägermanjensen?
+
+env_replace:
+  - a.txt
+  - b.txt
