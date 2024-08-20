@@ -17,14 +17,16 @@ from startout.env_manager import EnvironmentVariableManager
 from startout.init_option import InitOption
 from startout.starterfile import parse_starterfile, Starter
 
-custom_theme = Theme({
-    "input_prompt": "bold cyan",
-    "announcement": "bold yellow",
-    "success": "bold green",
-    "warning": "bold orange1",
-    "error": "bold red",
-    "bold": "bold",
-})
+custom_theme = Theme(
+    {
+        "input_prompt": "bold cyan",
+        "announcement": "bold yellow",
+        "success": "bold green",
+        "warning": "bold orange1",
+        "error": "bold red",
+        "bold": "bold",
+    }
+)
 
 console = Console(theme=custom_theme)
 log_path = os.path.join(Path(__file__).parent, "logs", "startout.log")
@@ -65,9 +67,7 @@ def prompt_init_option(option: InitOption):
                 else:
                     response = _T(potential_response)
             except ValueError:
-                console.print(
-                    f"[error]Try again.[/]"
-                )
+                console.print(f"[error]Try again.[/]")
                 potential_response = console.input("> ")
         else:
             response = option.default
@@ -188,10 +188,31 @@ def do_starter_init(starter: Starter, env_manager: EnvironmentVariableManager):
     starter.set_init_options(responses)
     starter.up(console, log_path)
 
-    # After opening the Path, gather the env vars generated during the process
-    env_manager.capture_final_env()
 
-    nonsensitive, sensitive = env_manager.get_captured_vars()
+    if starter.env_dump_file is not None and starter.env_dump_mode is not None:
+        # After opening the Path, gather the env vars generated during the process
+        console.print(
+            f"[info]Collecting environment variables for dump file: {starter.env_dump_file}[/]"
+        )
+        env_manager.capture_final_env()
+        nonsensitive, sensitive = env_manager.get_captured_vars()
+
+        # Ask for approval of each individual entry in sensitive
+        approved_sensitive = {}
+        for sens_key, sens_val in sensitive.items():
+            include_var = console.input(
+                f"[input_prompt]Do you want to include the potentially sensitive variable '{sens_key}={sens_val}'? (y/N) [/]")
+            if include_var.lower() == 'y':
+                approved_sensitive[sens_key] = sens_val
+
+        dump_vars = {**nonsensitive, **approved_sensitive}
+
+        with open(starter.env_dump_file, starter.env_dump_mode) as dump_file:
+            if starter.env_dump_mode == 'a':
+                dump_file.write("\n")
+
+            for key, val in dump_vars.items():
+                dump_file.write(f"{key}={val}\n")
 
 
 def new_repo_owner_interactive() -> str:

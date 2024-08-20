@@ -2,7 +2,7 @@ import itertools
 import os
 import sys
 from pathlib import Path
-from typing import TextIO, List
+from typing import TextIO, List, Tuple
 
 import yaml
 from dotenv import load_dotenv
@@ -77,10 +77,11 @@ class Starter:
         set_init_options(options)
             Placeholder method for setting the initialization options.
     """
+
     env_dump_schema = Schema(
         {
             "target": And(str, len),
-            Optional("mode"): Or("a", "w", "A", "W", only_one=True)
+            Optional("mode"): Or("a", "w", "A", "W", only_one=True),
         }
     )
     starterfile_schema = Schema(
@@ -89,12 +90,19 @@ class Starter:
             "modules": And(dict, len),
             Optional("env_file"): And(Or(Use(list), None)),
             Optional("env_replace"): And(list, len),
-            Optional("env_dump"): env_dump_schema
+            Optional("env_dump"): env_dump_schema,
         }
     )
 
-    def __init__(self, modules: List[Module], tools: List[Tool], module_dependencies: List[List[str]],
-                 tool_dependencies: List[List[str]]):
+    def __init__(
+        self,
+        modules: List[Module],
+        tools: List[Tool],
+        module_dependencies: List[List[str]],
+        tool_dependencies: List[List[str]],
+        env_replacement_targets: List[str] = None,
+        env_dump: Tuple[str, str] = None,
+    ):
         """
         Initializes the class instance with given modules, tools, module dependencies, and tool dependencies.
 
@@ -111,6 +119,14 @@ class Starter:
         self.tools = tools
         self.module_dependencies = module_dependencies
         self.tool_dependencies = tool_dependencies
+        self.env_replacement_targets = env_replacement_targets
+
+        if env_dump is None:
+            self.env_dump_file = None
+            self.env_dump_mode = None
+        else:
+            self.env_dump_file = env_dump[0]
+            self.env_dump_mode = env_dump[1]
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -119,9 +135,17 @@ class Starter:
             module_deps_match = self.module_dependencies == other.module_dependencies
             tool_deps_match = self.tool_dependencies == other.tool_dependencies
 
-            return modules_match and tools_match and module_deps_match and tool_deps_match
+            return (
+                modules_match and tools_match and module_deps_match and tool_deps_match
+            )
 
-    def up(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True, fail_early=True):
+    def up(
+        self,
+        console: Console or None = None,
+        log: Path or None = None,
+        teardown_on_failure=True,
+        fail_early=True,
+    ):
         """
         Installs all Tools, all Modules, and performs environment variable replacement on a Startersteps.md file (if
         applicable)
@@ -132,8 +156,12 @@ class Starter:
         :param fail_early: A boolean flag to determine whether to abort the process as soon as a tool or module fails to initialize. Default value is `False`.
         :return: A boolean value indicating whether the tools and modules installation was successful. Returns `True` if both tools and modules were installed successfully, otherwise returns `False`.
         """
-        tools_installed = self.install_tools(teardown_on_failure, fail_early, console, log)
-        modules_installed = self.install_modules(console, log, teardown_on_failure, fail_early)
+        tools_installed = self.install_tools(
+            teardown_on_failure, fail_early, console, log
+        )
+        modules_installed = self.install_modules(
+            console, log, teardown_on_failure, fail_early
+        )
 
         if not tools_installed:
             print("ERROR: Failed to install tools!", file=sys.stderr)
@@ -152,8 +180,14 @@ class Starter:
 
         return tools_installed and modules_installed
 
-    def install_tools(self, teardown_on_failure=True, fail_early=True, console: Console or None = None,
-                      log: Path or None = None, assumption: bool or None = None):
+    def install_tools(
+        self,
+        teardown_on_failure=True,
+        fail_early=True,
+        console: Console or None = None,
+        log: Path or None = None,
+        assumption: bool or None = None,
+    ):
         """
         Install tools layer by layer so that their dependencies are all met before being installed.
 
@@ -173,15 +207,24 @@ class Starter:
 
         print("Installing tools...")
 
-        for tool in (tool for tool in self.tools if tool.mode == InstallationMode.OPTIONAL):
+        for tool in (
+            tool for tool in self.tools if tool.mode == InstallationMode.OPTIONAL
+        ):
             if assumption is None:
-                potential_response = console.input(
-                    f"[input_prompt]Install {tool.name}? (y/N): [/]"
-                ).lower == "y"
+                potential_response = (
+                    console.input(
+                        f"[input_prompt]Install {tool.name}? (y/N): [/]"
+                    ).lower
+                    == "y"
+                )
             else:
                 potential_response = assumption
 
-            tool.mode = InstallationMode.INSTALL if potential_response else InstallationMode.OPTIONAL
+            tool.mode = (
+                InstallationMode.INSTALL
+                if potential_response
+                else InstallationMode.OPTIONAL
+            )
 
         failed_tools = []
         successful_tools = []
@@ -191,7 +234,12 @@ class Starter:
             current_layer += 1
             early_exit = False
 
-            for tool in (tool for tool in self.tools if tool.name in layer if tool.mode == InstallationMode.INSTALL):
+            for tool in (
+                tool
+                for tool in self.tools
+                if tool.name in layer
+                if tool.mode == InstallationMode.INSTALL
+            ):
                 # Use the tool's check function to prevent attempts to install an existing tool
                 if tool.check():
                     print(f".. Tool '{tool.name}' is already installed, skipping.")
@@ -209,12 +257,17 @@ class Starter:
                     else:
                         alt = next((t for t in self.tools if t.name == tool.alt), None)
 
-                        print(f".. Tool '{tool.name}' failed to install, will use alt '{alt.name}' instead.")
+                        print(
+                            f".. Tool '{tool.name}' failed to install, will use alt '{alt.name}' instead."
+                        )
                         alt.mode = InstallationMode.INSTALL
 
                         # Add the alt to the next dependency layer if it is not already accounted for
-                        if alt.name not in [tool_name for layer in self.tool_dependencies[current_layer:] for tool_name
-                                            in layer]:
+                        if alt.name not in [
+                            tool_name
+                            for layer in self.tool_dependencies[current_layer:]
+                            for tool_name in layer
+                        ]:
                             self.tool_dependencies[current_layer].append(alt.name)
 
                 else:
@@ -231,17 +284,30 @@ class Starter:
 
             # ... and teardown if specified
             if teardown_on_failure:
-                tools_to_rollback = [tool for tool in self.tools if
-                                     tool.name in successful_tools and should_rollback(tool.status)]
+                tools_to_rollback = [
+                    tool
+                    for tool in self.tools
+                    if tool.name in successful_tools and should_rollback(tool.status)
+                ]
 
-                print("Rolling back these installed tools:", tools_to_rollback, file=sys.stderr)
+                print(
+                    "Rolling back these installed tools:",
+                    tools_to_rollback,
+                    file=sys.stderr,
+                )
 
                 destroyed_tools = []
                 for tool in tools_to_rollback:
                     if not tool.destroy():
                         # TODO handle failure to destroy better
-                        print(f"FATAL: Failed to destroy tool \"{tool.name}\"", file=sys.stderr)
-                        print(f".. Only destroyed these tools: {destroyed_tools}", file=sys.stderr)
+                        print(
+                            f'FATAL: Failed to destroy tool "{tool.name}"',
+                            file=sys.stderr,
+                        )
+                        print(
+                            f".. Only destroyed these tools: {destroyed_tools}",
+                            file=sys.stderr,
+                        )
                         sys.exit(1)
                     else:
                         destroyed_tools.append(tool.name)
@@ -252,9 +318,13 @@ class Starter:
         # If all tools were successfully installed or were already installed
         return True
 
-
-    def install_modules(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True,
-                        fail_early=True):
+    def install_modules(
+        self,
+        console: Console or None = None,
+        log: Path or None = None,
+        teardown_on_failure=True,
+        fail_early=True,
+    ):
         """
         Install modules layer by layer so that their dependencies are all met before being installed.
 
@@ -299,16 +369,28 @@ class Starter:
 
             # Destroy modules which were successfully installed if specified
             if teardown_on_failure:
-                print("Rolling back successfully installed modules:",
-                      successful_modules,
-                      file=sys.stderr)
+                print(
+                    "Rolling back successfully installed modules:",
+                    successful_modules,
+                    file=sys.stderr,
+                )
 
                 destroyed_modules = []
-                for module in [module for module in self.modules if module.name in successful_modules]:
+                for module in [
+                    module
+                    for module in self.modules
+                    if module.name in successful_modules
+                ]:
                     if not module.destroy(console=console, log_path=log):
                         # TODO handle failure to destroy better
-                        print(f"FATAL: Failed to destroy module \"{module.name}\"", file=sys.stderr)
-                        print(f".. Only destroyed these modules: {destroyed_modules}", file=sys.stderr)
+                        print(
+                            f'FATAL: Failed to destroy module "{module.name}"',
+                            file=sys.stderr,
+                        )
+                        print(
+                            f".. Only destroyed these modules: {destroyed_modules}",
+                            file=sys.stderr,
+                        )
                         sys.exit(1)
                     else:
                         destroyed_modules.append(module.name)
@@ -319,7 +401,6 @@ class Starter:
         # If all modules were successfully initialized
         return True
 
-
     def get_init_options(self):
         """
         Returns a list of tuples containing the name and init_options of modules
@@ -328,8 +409,11 @@ class Starter:
         :return: A list of tuples where each tuple contains the name and init_options
                  of modules satisfying the condition.
         """
-        return [(module.name, module.init_options) for module in self.modules if module.init_options is not None]
-
+        return [
+            (module.name, module.init_options)
+            for module in self.modules
+            if module.init_options is not None
+        ]
 
     def set_init_options(self, options):
         """
@@ -348,8 +432,12 @@ class Starter:
             os.environ[option_name] = str(value)
 
             # Update the internal variable of the option itself
-            module = [module for module in self.modules if module.name == module_name][0]
-            option = [option for option in module.init_options if option.name == option_name][0]
+            module = [module for module in self.modules if module.name == module_name][
+                0
+            ]
+            option = [
+                option for option in module.init_options if option.name == option_name
+            ][0]
             option.value = value
 
 
@@ -369,7 +457,10 @@ def create_dependency_layers(items: List[Module or Tool]) -> List[List[str]]:
     # Check for any unfulfilled dependencies,
     #  collect all items that are in any item's depends_on fields
     all_items_depended_upon = set(
-        itertools.chain.from_iterable([item.dependencies for item in items if item.dependencies is not None]))
+        itertools.chain.from_iterable(
+            [item.dependencies for item in items if item.dependencies is not None]
+        )
+    )
 
     # Check if any items that are depended upon are not present (e.g. 'a' requires 'z' but only 'a' and 'b' are defined)
     unmet_dependencies = all_items_depended_upon - set([item.name for item in items])
@@ -383,7 +474,9 @@ def create_dependency_layers(items: List[Module or Tool]) -> List[List[str]]:
     # Put remaining modules (those with dependencies) in a set
     dependent_items = False
     if len(dependency_layers) > 0:
-        dependent_items = set([item for item in items if item.name not in dependency_layers[0]])
+        dependent_items = set(
+            [item for item in items if item.name not in dependency_layers[0]]
+        )
 
     # Add items to layers until none are left
     while dependent_items:
@@ -395,8 +488,11 @@ def create_dependency_layers(items: List[Module or Tool]) -> List[List[str]]:
                 added_items.append(dependent_item)
 
         if len(added_items) == 0:
-            print(f"ERROR: Could not meet dependencies for {[item.name for item in dependent_items]}, "
-                  f"may be a circular dependency.", file=sys.stderr)
+            print(
+                f"ERROR: Could not meet dependencies for {[item.name for item in dependent_items]}, "
+                f"may be a circular dependency.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         for added_item in added_items:
@@ -427,7 +523,9 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
                 _path = os.path.join(os.path.dirname(starterfile_stream.name), env_file)
                 load_dotenv(str(_path))
         elif type(loaded["env_file"]) is str:
-            _path = os.path.join(os.path.dirname(starterfile_stream.name), loaded["env_file"])
+            _path = os.path.join(
+                os.path.dirname(starterfile_stream.name), loaded["env_file"]
+            )
             load_dotenv(str(_path))
 
     Starter.starterfile_schema.validate(loaded)
@@ -466,9 +564,23 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
 
     print("SUCCESS! Parsed modules:", [module.get_name() for module in modules])
 
+    env_replacement_targets = (
+        loaded["env_replace"] if "env_replace" in loaded.keys() else None
+    )
+    if "env_dump" in loaded.keys():
+        env_dump_file, env_dump_mode = (
+            loaded["env_dump"]["target"],
+            loaded["env_dump"]["mode"],
+        )
+        env_dump = (env_dump_file, env_dump_mode)
+    else:
+        env_dump = None
+
     return Starter(
         modules=modules,
         tools=tools,
         module_dependencies=module_dependencies,
-        tool_dependencies=tool_dependencies
+        tool_dependencies=tool_dependencies,
+        env_replacement_targets=env_replacement_targets,
+        env_dump=env_dump,
     )

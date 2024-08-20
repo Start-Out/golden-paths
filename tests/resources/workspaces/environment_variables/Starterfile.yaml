@@ -19,6 +19,9 @@ modules:
         - env_name: ONE
           default: 1
           prompt: How would you describe Smitty Werbenjägermanjensen?
+        - env_name: API_KEY
+          default: xxx-x-xx
+          prompt: Enter API key
 
 env_replace:
   - a.txt

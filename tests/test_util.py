@@ -47,14 +47,12 @@ def test_is_yaml_loadable_type_with_unloadable_type():
 
 class TestGetScript(unittest.TestCase):
 
-    @patch('platform.system', return_value='Windows')
+    @patch("platform.system", return_value="Windows")
     def test_get_script_for_windows(self, _):
-        script = 'test_script'
+        script = "test_script"
         scripts_dict = {
-            'test_script': 'echo "Top level script"',
-            'windows': {
-                'test_script': 'echo "Windows script"'
-            }
+            "test_script": 'echo "Top level script"',
+            "windows": {"test_script": 'echo "Windows script"'},
         }
         name = "script_tool"
         expected_result = 'echo "Windows script"'
@@ -62,14 +60,12 @@ class TestGetScript(unittest.TestCase):
         result = util.get_script(script, scripts_dict, name)
         self.assertEqual(result, expected_result)
 
-    @patch('platform.system', return_value='Darwin')
+    @patch("platform.system", return_value="Darwin")
     def test_get_script_for_mac(self, _):
-        script = 'test_script'
+        script = "test_script"
         scripts_dict = {
-            'test_script': 'echo "Top level script"',
-            'mac': {
-                'test_script': 'echo "Mac script"'
-            }
+            "test_script": 'echo "Top level script"',
+            "mac": {"test_script": 'echo "Mac script"'},
         }
         name = "script_tool"
         expected_result = 'echo "Mac script"'
@@ -77,14 +73,12 @@ class TestGetScript(unittest.TestCase):
         result = util.get_script(script, scripts_dict, name)
         self.assertEqual(result, expected_result)
 
-    @patch('platform.system', return_value='Linux')
+    @patch("platform.system", return_value="Linux")
     def test_get_script_for_linux(self, _):
-        script = 'test_script'
+        script = "test_script"
         scripts_dict = {
-            'test_script': 'echo "Top level script"',
-            'linux': {
-                'test_script': 'echo "Linux script"'
-            }
+            "test_script": 'echo "Top level script"',
+            "linux": {"test_script": 'echo "Linux script"'},
         }
         name = "script_tool"
         expected_result = 'echo "Linux script"'
@@ -92,11 +86,11 @@ class TestGetScript(unittest.TestCase):
         result = util.get_script(script, scripts_dict, name)
         self.assertEqual(result, expected_result)
 
-    @patch('platform.system', return_value='Linux')
+    @patch("platform.system", return_value="Linux")
     def test_get_script_top_level(self, _):
-        script = 'test_script'
+        script = "test_script"
         scripts_dict = {
-            'test_script': 'echo "Top level script"',
+            "test_script": 'echo "Top level script"',
         }
         name = "script_tool"
         expected_result = 'echo "Top level script"'
@@ -105,10 +99,8 @@ class TestGetScript(unittest.TestCase):
         self.assertEqual(result, expected_result)
 
     def test_get_script_none(self):
-        script = 'not_a_script'
-        scripts_dict = {
-            'test_script': 'exit 0'
-        }
+        script = "not_a_script"
+        scripts_dict = {"test_script": "exit 0"}
         name = "script_tool"
         expected_result = None
 
@@ -142,45 +134,47 @@ class TestTypeTool(unittest.TestCase):
 class TestReplaceEnv(unittest.TestCase):
 
     def test_replace_env_single_variable(self):
-        os.environ['FOO'] = 'Bar'
-        self.assertEqual(util.replace_env("Hello ${FOO}"), 'Hello Bar')
+        os.environ["FOO"] = "Bar"
+        self.assertEqual(util.replace_env("Hello ${FOO}"), "Hello Bar")
 
     def test_replace_env_multiple_variables(self):
-        os.environ['USERNAME'] = 'John'
-        os.environ['HOME'] = '/home/john'
-        self.assertEqual(util.replace_env('Hello ${USERNAME}, your home directory is ${HOME}'),
-                         'Hello John, your home directory is /home/john')
+        os.environ["USERNAME"] = "John"
+        os.environ["HOME"] = "/home/john"
+        self.assertEqual(
+            util.replace_env("Hello ${USERNAME}, your home directory is ${HOME}"),
+            "Hello John, your home directory is /home/john",
+        )
 
     def test_replace_env_no_variables(self):
-        self.assertEqual(util.replace_env('Hello world'), 'Hello world')
+        self.assertEqual(util.replace_env("Hello world"), "Hello world")
 
     def test_replace_env_empty_string(self):
-        self.assertEqual(util.replace_env(''), '')
+        self.assertEqual(util.replace_env(""), "")
 
     def test_replace_env_variable_not_set(self):
-        expected = 'Hello ${UNDEFINED_VAR}'
+        expected = "Hello ${UNDEFINED_VAR}"
         assert expected == util.replace_env(expected)
 
 
 class TestBoolConversion(unittest.TestCase):
 
     def test_bool_to_yn(self):
-        self.assertEqual(bool_to_yn(True), 'y')
-        self.assertEqual(bool_to_yn(False), 'n')
+        self.assertEqual(bool_to_yn(True), "y")
+        self.assertEqual(bool_to_yn(False), "n")
 
     def test_bool_to_strings(self):
-        self.assertListEqual(bool_to_strings(True), ['yes', 'y', 'true'])
-        self.assertListEqual(bool_to_strings(False), ['no', 'n', 'false'])
+        self.assertListEqual(bool_to_strings(True), ["yes", "y", "true"])
+        self.assertListEqual(bool_to_strings(False), ["no", "n", "false"])
 
     def test_string_to_bool(self):
-        self.assertEqual(string_to_bool('yes'), True)
-        self.assertEqual(string_to_bool('y'), True)
-        self.assertEqual(string_to_bool('true'), True)
-        self.assertEqual(string_to_bool('no'), False)
-        self.assertEqual(string_to_bool('n'), False)
-        self.assertEqual(string_to_bool('false'), False)
-        self.assertEqual(string_to_bool('unknown'), None)
+        self.assertEqual(string_to_bool("yes"), True)
+        self.assertEqual(string_to_bool("y"), True)
+        self.assertEqual(string_to_bool("true"), True)
+        self.assertEqual(string_to_bool("no"), False)
+        self.assertEqual(string_to_bool("n"), False)
+        self.assertEqual(string_to_bool("false"), False)
+        self.assertEqual(string_to_bool("unknown"), None)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -17,15 +17,20 @@ class Tool:
 
 @pytest.fixture
 def no_dependency_modules():
-   """Fixture to create list of `Module` objects with no dependencies."""
-   return [Module(f"Module_{i}", None) for i in range(5)]
+    """Fixture to create list of `Module` objects with no dependencies."""
+    return [Module(f"Module_{i}", None) for i in range(5)]
 
 
 @pytest.fixture
 def with_dependency_modules():
-   """Fixture to create list of `Module`, `Tool` objects with dependencies."""
-   return [Module("Module_0", None), Tool("Tool_1", ["Module_0"]), Module("Module_2", ["Tool_1"]),
-           Tool("Tool_3", ["Module_2"]), Module("Module_4", ["Tool_3"])]
+    """Fixture to create list of `Module`, `Tool` objects with dependencies."""
+    return [
+        Module("Module_0", None),
+        Tool("Tool_1", ["Module_0"]),
+        Module("Module_2", ["Tool_1"]),
+        Tool("Tool_3", ["Module_2"]),
+        Module("Module_4", ["Tool_3"]),
+    ]
 
 
 def test_create_dependency_layers_without_dependencies(no_dependency_modules):
