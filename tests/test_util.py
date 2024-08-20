@@ -1,3 +1,4 @@
+import math
 import os
 import unittest
 from unittest.mock import patch
@@ -5,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from startout import util
-from startout.util import bool_to_yn, bool_to_strings, string_to_bool
+from startout.util import bool_to_yn, bool_to_strings, string_to_bool, calculate_entropy
 from startout.util import is_yaml_loadable_type, SchemaError
 
 
@@ -43,6 +44,42 @@ def test_is_yaml_loadable_type_with_unloadable_type():
 
     with pytest.raises(SchemaError):
         is_yaml_loadable_type(UnloadableType())
+
+
+def test_calculate_entropy_empty_data():
+    data = []
+    result = calculate_entropy(data)
+    assert result == 0, 'Entropy of empty set should be 0'
+
+
+def test_calculate_entropy_all_same():
+    data = ['a', 'a', 'a', 'a', 'a']
+    result = calculate_entropy(data)
+    assert result == 0, 'Entropy of set with all same elements should be 0'
+
+
+def test_calculate_entropy_half_half():
+    data = ['a', 'a', 'a', 'b', 'b', 'b']
+    result = calculate_entropy(data)
+    assert math.isclose(result, 1.0, abs_tol=1e-6), 'Entropy of set with 50-50 distribution should be 1'
+
+
+def test_calculate_entropy_diff_distribution():
+    data = ['a', 'a', 'b', 'b', 'b', 'c']
+    result = calculate_entropy(data)
+    assert math.isclose(result, 1.4591, abs_tol=1e-4), 'Entropy should match the calculated value'
+
+
+def test_calculate_entropy_single_distinct():
+    data = ['a', 'a', 'a', 'b']
+    result = calculate_entropy(data)
+    assert math.isclose(result, 0.8112, abs_tol=1e-4), 'Entropy should match the calculated value'
+
+
+def test_calculate_entropy_all_distinct():
+    data = ['a', 'b', 'c', 'd']
+    result = calculate_entropy(data)
+    assert math.isclose(result, 2.0, abs_tol=1e-6), 'Entropy of set with all distinct elements should be 2'
 
 
 class TestGetScript(unittest.TestCase):

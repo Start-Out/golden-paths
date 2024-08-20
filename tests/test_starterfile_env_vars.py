@@ -71,9 +71,6 @@ API_KEY={self.mock_api_key}
         with open("final.env", "r") as f:
             updated = f.read()
 
-        print("==== UPDATED: ")  # TODO debug
-        print(updated)
-
         with open("final.env", "w") as f:
             f.write(original_file_contents)
         with open("a.txt", "w") as f:
