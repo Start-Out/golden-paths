@@ -176,6 +176,7 @@ def initialize_path_instance(
 
             do_starter_init(starter, env_manager)
 
+
 def do_starter_init(starter: Starter, env_manager: EnvironmentVariableManager):
     init_options = starter.get_init_options()
 
@@ -187,7 +188,6 @@ def do_starter_init(starter: Starter, env_manager: EnvironmentVariableManager):
 
     starter.set_init_options(responses)
     starter.up(console, log_path)
-
 
     if starter.env_dump_file is not None and starter.env_dump_mode is not None:
         # After opening the Path, gather the env vars generated during the process
@@ -366,7 +366,6 @@ def startout_paths_command():
 )
 def starterfile_up_only(
         starterfile_path: Annotated[Optional[str], typer.Argument(help="Startfile to use")] = "Starterfile.yaml"):
-
     # Ensure the starterfile path is a valid file
     if not Path(starterfile_path).is_file():
         print(f"No such file '{starterfile_path}'", file=sys.stderr)

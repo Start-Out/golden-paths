@@ -8,6 +8,7 @@ from startout.util import is_potentially_sensitive_key_value
 class EnvironmentVariableManager:
     def __init__(self):
         self.initial_vars = {k: v for k, v in os.environ.items()}
+
         self.final_vars = {}
 
     def capture_final_env(self):
@@ -32,6 +33,7 @@ class EnvironmentVariableManager:
         - `potentially_sensitive` (dict): A dictionary containing the potentially sensitive variables and their values.
 
         """
+
         potentially_sensitive = {
             key: value
             for key, value in self.final_vars.items()

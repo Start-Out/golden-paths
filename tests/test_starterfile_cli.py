@@ -48,6 +48,7 @@ class TestStarterFileCLI(unittest.TestCase):
 
     def setUp(self):
         self.safe_dir = os.getcwd()
+        self.safe_env_vars = os.environ.copy()
 
         # Test parameters
         self.fully_formed_template_name = "Github/Repository"
@@ -69,6 +70,8 @@ class TestStarterFileCLI(unittest.TestCase):
         self.console_patcher.stop()
         self.console_height_patcher.stop()
         os.chdir(self.safe_dir)
+        os.environ.clear()
+        os.environ.update(self.safe_env_vars)
 
     # fmt: off
     @parameterized.expand([

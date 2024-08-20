@@ -37,6 +37,7 @@ API_KEY={self.mock_api_key}
         self.console_patcher.stop()
         self.console_height_patcher.stop()
         os.chdir(self.safe_dir)
+        os.environ.clear()
         os.environ.update(self.safe_env_vars)
 
     @mock.patch("startout.paths.initialize_repo")
@@ -67,13 +68,8 @@ API_KEY={self.mock_api_key}
 
         with open("final.env", "r") as f:
             updated = f.read()
-            matching_contents = updated == self.final_env_file
-            print("== updated")
-            print(updated)
-            print("== expected")
-            print(self.final_env_file)
 
         with open("final.env", "w") as f:
             f.write(original_file_contents)
 
-        assert matching_contents
+        assert updated == self.final_env_file
