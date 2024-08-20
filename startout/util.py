@@ -36,7 +36,7 @@ SENSITIVE_PATTERNS = [
     re.compile(r'ACCESS_KEY', re.IGNORECASE)
 ]
 
-HIGH_ENTROPY_THRESHOLD = 4.5
+HIGH_ENTROPY_THRESHOLD = 3.5
 
 
 def calculate_entropy(data):

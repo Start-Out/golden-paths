@@ -12,7 +12,7 @@ def test_env_vars():
 
 @pytest.fixture
 def sensitive_env_vars():
-    return {"SECRET_VAR_3": "VALUE_3", "SECRET_VAR_4": "VALUE_4"}
+    return {"SECRET_VAR_3": "VALUE_3", "SECRET_VAR_4": "VALUE_4", "INNOCUOUS_VAR_5": "Fhd@aF+88nZV$h4YFe445"}
 
 
 def test_capture_final_env(test_env_vars, sensitive_env_vars):
