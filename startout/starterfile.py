@@ -77,11 +77,19 @@ class Starter:
         set_init_options(options)
             Placeholder method for setting the initialization options.
     """
+    env_dump_schema = Schema(
+        {
+            "target": And(str, len),
+            Optional("mode"): Or("a", "w", "A", "W", only_one=True)
+        }
+    )
     starterfile_schema = Schema(
         {
             "tools": And(dict, len),
             "modules": And(dict, len),
-            Optional('env_file'): And(Or(Use(list), None))
+            Optional("env_file"): And(Or(Use(list), None)),
+            Optional("env_replace"): And(list, len),
+            Optional("env_dump"): env_dump_schema
         }
     )
 

@@ -23,3 +23,7 @@ modules:
 env_replace:
   - a.txt
   - b.txt
+
+env_dump:
+  target: final.env
+  mode: a

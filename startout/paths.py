@@ -13,8 +13,9 @@ from typing_extensions import Annotated
 
 import startout.github_api as gh_api
 from startout import util
+from startout.env_manager import EnvironmentVariableManager
 from startout.init_option import InitOption
-from startout.starterfile import parse_starterfile
+from startout.starterfile import parse_starterfile, Starter
 
 custom_theme = Theme({
     "input_prompt": "bold cyan",
@@ -168,19 +169,29 @@ def initialize_path_instance(
             # Initialize frameworks using Starterfile
             os.chdir(initialized_repo_path)
 
+            # Start capturing environment variables throughout the process of opening the Path
+            env_manager = EnvironmentVariableManager()
             with open("Starterfile.yaml", "r") as starter_file:
                 starter = parse_starterfile(starter_file)
 
-            init_options = starter.get_init_options()
+            do_starter_init(starter, env_manager)
 
-            responses = {}
-            for module_name, options in init_options:
-                for option in options:
-                    response = prompt_init_option(option)
-                    responses[(module_name, option.name)] = response
+def do_starter_init(starter: Starter, env_manager: EnvironmentVariableManager):
+    init_options = starter.get_init_options()
 
-            starter.set_init_options(responses)
-            starter.up(console, log_path)
+    responses = {}
+    for module_name, options in init_options:
+        for option in options:
+            response = prompt_init_option(option)
+            responses[(module_name, option.name)] = response
+
+    starter.set_init_options(responses)
+    starter.up(console, log_path)
+
+    # After opening the Path, gather the env vars generated during the process
+    env_manager.capture_final_env()
+
+    nonsensitive, sensitive = env_manager.get_captured_vars()
 
 
 def new_repo_owner_interactive() -> str:
@@ -348,19 +359,12 @@ def starterfile_up_only(
 
     os.chdir(starterfile_parent_dir)
 
+    # Start capturing environment variables throughout the process of opening the Path
+    env_manager = EnvironmentVariableManager()
     with open(full_starterfile_path, "r") as starter_file:
         starter = parse_starterfile(starter_file)
 
-    init_options = starter.get_init_options()
-
-    responses = {}
-    for module_name, options in init_options:
-        for option in options:
-            response = prompt_init_option(option)
-            responses[(module_name, option.name)] = response
-
-    starter.set_init_options(responses)
-    starter.up(console, log_path)
+    do_starter_init(starter, env_manager)
     os.chdir(cwd)
 
 
