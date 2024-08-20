@@ -15,6 +15,7 @@ class Starter:
         self.name = name
         self.mock_init_options = mock_init_options
         self.mock_up_succeeds = mock_up_succeeds
+        self.env_replacement_targets = None
         self.env_dump_file = None
         self.env_dump_mode = None
 

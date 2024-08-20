@@ -16,6 +16,7 @@ from startout import util
 from startout.env_manager import EnvironmentVariableManager
 from startout.init_option import InitOption
 from startout.starterfile import parse_starterfile, Starter
+from startout.util import replace_env
 
 custom_theme = Theme(
     {
@@ -189,6 +190,8 @@ def do_starter_init(starter: Starter, env_manager: EnvironmentVariableManager):
     starter.set_init_options(responses)
     starter.up(console, log_path)
 
+    ###############
+    # Dump env vars
     if starter.env_dump_file is not None and starter.env_dump_mode is not None:
         # After opening the Path, gather the env vars generated during the process
         console.print(
@@ -213,6 +216,17 @@ def do_starter_init(starter: Starter, env_manager: EnvironmentVariableManager):
 
             for key, val in dump_vars.items():
                 dump_file.write(f"{key}={val}\n")
+
+    ########################
+    # Do env var replacement
+    if starter.env_replacement_targets is not None:
+        for target in starter.env_replacement_targets:
+            with open(target, 'r') as target_file:
+                lines = target_file.readlines()
+
+            with open(target, 'w') as target_file:
+                for line in lines:
+                    target_file.write(replace_env(line))
 
 
 def new_repo_owner_interactive() -> str:

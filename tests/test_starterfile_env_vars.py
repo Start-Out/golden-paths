@@ -42,7 +42,7 @@ API_KEY={self.mock_api_key}
 
     @mock.patch("startout.paths.initialize_repo")
     @mock.patch("startout.paths.gh_api.check_repo_custom_property")
-    def test_starterfile_env_vars(self, mock_check, mock_init_repo):
+    def test_starterfile_dumps_env_vars(self, mock_check, mock_init_repo):
         #####################
         # Define interactions
         self.mock_console.input.side_effect = [
@@ -73,3 +73,51 @@ API_KEY={self.mock_api_key}
             f.write(original_file_contents)
 
         assert updated == self.final_env_file
+
+    @mock.patch("startout.paths.initialize_repo")
+    @mock.patch("startout.paths.gh_api.check_repo_custom_property")
+    def test_starterfile_does_env_replacement(self, mock_check, mock_init_repo):
+        #####################
+        # Define interactions
+        self.mock_console.input.side_effect = [
+            "",
+            self.mock_api_key,
+            "y",
+        ]  # Simulate input
+        mock_check.return_value = True  # The template is a valid Path
+        mock_init_repo.return_value = "."  # Successfully initialized the repo
+        #####################
+
+        os.chdir("tests/resources/workspaces/environment_variables")
+
+        test_file_expected = {
+            "a.txt": "1\nThe line previous to this should be '1'",
+            "b.txt": "${THIS_IS_NOT_A_REAL_ENVIRONMENT_VARIABLE_DUCK_1}\nThe line previous to this should be '${THIS_IS_NOT_A_REAL_ENVIRONMENT_VARIABLE_DUCK_1}'",
+            "c.txt": "${ONE}\nThe line previous to this should be '${ONE}'"
+        }
+
+        test_file_contents = {
+            "a.txt": "",
+            "b.txt": "",
+            "c.txt": ""
+        }
+
+        for file_name, _ in test_file_contents.items():
+            with open(file_name, "r") as f:
+                test_file_contents[file_name] = f.read()
+
+        startout.paths.initialize_path_instance(
+            template=self.fully_formed_template_name,
+            new_repo_name=self.new_repo_name,
+            new_repo_owner=self.new_repo_owner,
+            public=self.public,
+        )
+
+        for file_name, _ in test_file_contents.items():
+            with open(file_name, "r") as f:
+                assert test_file_expected[file_name] == f.read()
+
+        for file_name, _ in test_file_contents.items():
+            with open(file_name, "w") as f:
+                f.write(test_file_contents[file_name])
+

@@ -81,7 +81,7 @@ class Starter:
     env_dump_schema = Schema(
         {
             "target": And(str, len),
-            Optional("mode"): Or("a", "w", "A", "W", only_one=True),
+            Optional("mode"): Or("a", "w", "A", "W"),
         }
     )
     starterfile_schema = Schema(

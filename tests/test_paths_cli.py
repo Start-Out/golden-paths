@@ -21,7 +21,7 @@ class TestPromptInitOption(unittest.TestCase):
 
     @patch.object(console, "input")
     def test_prompt_init_option_when_default_type_bool_and_response_yes(
-        self, input_mock
+            self, input_mock
     ):
         input_mock.return_value = "y"
         self.option.default = True
@@ -29,7 +29,7 @@ class TestPromptInitOption(unittest.TestCase):
 
     @patch.object(console, "input")
     def test_prompt_init_option_when_default_type_bool_and_response_no(
-        self, input_mock
+            self, input_mock
     ):
         input_mock.return_value = "n"
         self.option.default = True
@@ -67,7 +67,3 @@ class TestPromptInitOption(unittest.TestCase):
         ]  # First input is invalid, second is valid.
         self.option.default = 0
         self.assertEqual(prompt_init_option(self.option), 1)
-
-
-if __name__ == "__main__":
-    unittest.main()
