@@ -58,6 +58,8 @@ API_KEY={self.mock_api_key}
 
         with open("final.env", "r") as f:
             original_file_contents = f.read()
+        with open("a.txt", "r") as f:
+            a_file_contents = f.read()
 
         startout.paths.initialize_path_instance(
             template=self.fully_formed_template_name,
@@ -69,8 +71,13 @@ API_KEY={self.mock_api_key}
         with open("final.env", "r") as f:
             updated = f.read()
 
+        print("==== UPDATED: ")  # TODO debug
+        print(updated)
+
         with open("final.env", "w") as f:
             f.write(original_file_contents)
+        with open("a.txt", "w") as f:
+            f.write(a_file_contents)
 
         assert updated == self.final_env_file
 
@@ -89,6 +96,9 @@ API_KEY={self.mock_api_key}
         #####################
 
         os.chdir("tests/resources/workspaces/environment_variables")
+
+        with open("final.env", "r") as f:
+            original_file_contents = f.read()
 
         test_file_expected = {
             "a.txt": "1\nThe line previous to this should be '1'",
@@ -120,4 +130,7 @@ API_KEY={self.mock_api_key}
         for file_name, _ in test_file_contents.items():
             with open(file_name, "w") as f:
                 f.write(test_file_contents[file_name])
+
+        with open("final.env", "w") as f:
+            f.write(original_file_contents)
 
