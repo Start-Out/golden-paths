@@ -29,5 +29,7 @@ modules:
     source:
       script: exit 0
     scripts:
-      init: exit 0
+      init: |
+        echo HAHAHA
+        exit 0
       destroy: exit 0

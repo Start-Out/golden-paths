@@ -17,23 +17,32 @@ tools:
         uninstall: sudo apt remove npm
   pnpm:
     depends_on: nodejs
+    mode: install  # Default
     scripts:
       install: npm install -g pnpm
       uninstall: npm uninstall -g pnpm
       check: exit 0
   create-react-app:
     depends_on: nodejs
+    mode: optional
     scripts:
-      install: npm install -g create-react-app
-      uninstall: npm uninstall -g create-react-app
+      install: exit 0
+      uninstall: exit 0
       check: exit 0
-  git-hooks:
+  broken:
     depends_on: nodejs
-    # Only works with git>=2.9.0
+    alt: working
     scripts:
-      check: exit 0
-      install: git config --local core.hooksPath .githooks/
-      uninstall: git config --local --unset core.hooksPath
+      check: exit 1
+      install: exit 1
+      uninstall: exit 0
+  working:
+    mode: as_alt  # install, optional, as_alt
+    scripts:
+      check: exit 1
+      install: exit 0
+      uninstall: exit 0
+
 
 modules:
   postgresql:

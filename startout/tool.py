@@ -1,8 +1,25 @@
+from enum import Enum
 from typing import List, Dict, Tuple
 
 from schema import Schema, And, Or, Optional
 
 from startout.util import run_script_with_env_substitution, get_script, validate_str_list
+
+
+class InstallationMode(Enum):
+    INSTALL = "INSTALL"
+    OPTIONAL = "OPTIONAL"
+    AS_ALT = "AS_ALT"
+
+
+class InstallationStatus(Enum):
+    EXISTING_INSTALLATION = 0
+    NEWLY_INSTALLED = 1
+    NOT_INSTALLED = 2
+
+
+def should_rollback(installation_status: InstallationStatus):
+    return installation_status == InstallationStatus.NEWLY_INSTALLED
 
 
 class Tool:
@@ -64,11 +81,14 @@ class Tool:
     tool_schema = Schema(
         {
             Optional("depends_on"): Or(str, validate_str_list),
+            Optional("mode"): Or("install", "optional", "as_alt"),
+            Optional("alt"): str,
             "scripts": tool_scripts_schema
         }
     )
 
-    def __init__(self, name: str, dependencies: List[str] or None, scripts: Dict[str, str or Dict[str, str]]):
+    def __init__(self, name: str, dependencies: List[str] or None, scripts: Dict[str, str or Dict[str, str]],
+                 alt: str or None = None, install_mode: str = "INSTALL"):
         """
         Initializes a Tool with the given name, dependencies, and scripts.
 
@@ -78,16 +98,19 @@ class Tool:
 
         :raises TypeError: If the 'install' and 'uninstall' scripts are not defined for the module.
         """
-        if get_script("install", scripts, name=name) is None:
-            raise TypeError(f"No 'install' script defined for module \"{name}\". Failed to create Module.")
-        if get_script("uninstall", scripts, name=name) is None:
-            raise TypeError(f"No 'uninstall' script defined for module \"{name}\". Failed to create Module.")
-        if get_script("check", scripts, name=name) is None:
-            raise TypeError(f"No 'check' script defined for module \"{name}\". Failed to create Module.")
+        # These calls will raise ValueError if any are missing
+        get_script("install", scripts, name=name)
+        get_script("uninstall", scripts, name=name)
+        get_script("check", scripts, name=name)
 
         self.name = name
         self.dependencies = dependencies
         self.scripts = scripts
+        self.alt = alt
+
+        self.mode = InstallationMode[install_mode.upper()]
+
+        self.status = InstallationStatus.NOT_INSTALLED
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__

@@ -10,7 +10,7 @@ from rich.console import Console
 from schema import Schema, And, Or, Optional, Use
 
 from startout.module import Module, create_module
-from startout.tool import Tool
+from startout.tool import Tool, InstallationStatus, should_rollback, InstallationMode
 from startout.util import replace_env
 
 
@@ -124,7 +124,7 @@ class Starter:
         :param fail_early: A boolean flag to determine whether to abort the process as soon as a tool or module fails to initialize. Default value is `False`.
         :return: A boolean value indicating whether the tools and modules installation was successful. Returns `True` if both tools and modules were installed successfully, otherwise returns `False`.
         """
-        tools_installed = self.install_tools(teardown_on_failure, fail_early)
+        tools_installed = self.install_tools(teardown_on_failure, fail_early, console, log)
         modules_installed = self.install_modules(console, log, teardown_on_failure, fail_early)
 
         if not tools_installed:
@@ -144,10 +144,12 @@ class Starter:
 
         return tools_installed and modules_installed
 
-    def install_tools(self, teardown_on_failure=True, fail_early=True):
+    def install_tools(self, teardown_on_failure=True, fail_early=True, console: Console or None = None,
+                      log: Path or None = None, assumption: bool or None = None):
         """
         Install tools layer by layer so that their dependencies are all met before being installed.
 
+        :param assumption: When asking for input, assumes True or False if set
         :param teardown_on_failure: If True, rollback other tools if any tool installation fails.
         :type teardown_on_failure: bool
         :param fail_early: If True, function will return false as soon as a tool fails to initialize.
@@ -163,25 +165,54 @@ class Starter:
 
         print("Installing tools...")
 
+        for tool in (tool for tool in self.tools if tool.mode == InstallationMode.OPTIONAL):
+            if assumption is None:
+                potential_response = console.input(
+                    f"[input_prompt]Install {tool.name}? (y/N): [/]"
+                ).lower == "y"
+            else:
+                potential_response = assumption
+
+            tool.mode = InstallationMode.INSTALL if potential_response else InstallationMode.OPTIONAL
+
         failed_tools = []
         successful_tools = []
+        current_layer = -1
         for layer in self.tool_dependencies:
             # Install tools layer by layer so that their dependencies are all met before being installed
+            current_layer += 1
             early_exit = False
 
-            for tool in (tool for tool in self.tools if tool.name in layer):
+            for tool in (tool for tool in self.tools if tool.name in layer if tool.mode == InstallationMode.INSTALL):
                 # Use the tool's check function to prevent attempts to install an existing tool
                 if tool.check():
                     print(f".. Tool '{tool.name}' is already installed, skipping.")
+                    tool.status = InstallationStatus.EXISTING_INSTALLATION
                     continue
 
                 # Initialize this tool, adding it to the list of failures if it cannot be initialized
                 if not tool.initialize():
-                    failed_tools.append(tool.name)
-                    if fail_early:
-                        early_exit = True
+                    if tool.alt is None:
+                        print(f".. Tool '{tool.name}' failed to install.")
+                        failed_tools.append(tool.name)
+                        tool.status = InstallationStatus.NOT_INSTALLED
+                        if fail_early:
+                            early_exit = True
+                    else:
+                        alt = next((t for t in self.tools if t.name == tool.alt), None)
+
+                        print(f".. Tool '{tool.name}' failed to install, will use alt '{alt.name}' instead.")
+                        alt.mode = InstallationMode.INSTALL
+
+                        # Add the alt to the next dependency layer if it is not already accounted for
+                        if alt.name not in [tool_name for layer in self.tool_dependencies[current_layer:] for tool_name
+                                            in layer]:
+                            self.tool_dependencies[current_layer].append(alt.name)
+
                 else:
+                    print(f".. Tool '{tool.name}' installed successfully.")
                     successful_tools.append(tool.name)
+                    tool.status = InstallationStatus.NEWLY_INSTALLED
 
             if early_exit:
                 break
@@ -192,10 +223,13 @@ class Starter:
 
             # ... and teardown if specified
             if teardown_on_failure:
-                print("Rolling back successfully installed tools:", successful_tools, file=sys.stderr)
+                tools_to_rollback = [tool for tool in self.tools if
+                                     tool.name in successful_tools and should_rollback(tool.status)]
+
+                print("Rolling back these installed tools:", tools_to_rollback, file=sys.stderr)
 
                 destroyed_tools = []
-                for tool in [tool for tool in self.tools if tool.name in successful_tools]:
+                for tool in tools_to_rollback:
                     if not tool.destroy():
                         # TODO handle failure to destroy better
                         print(f"FATAL: Failed to destroy tool \"{tool.name}\"", file=sys.stderr)
@@ -210,7 +244,9 @@ class Starter:
         # If all tools were successfully installed or were already installed
         return True
 
-    def install_modules(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True, fail_early=True):
+
+    def install_modules(self, console: Console or None = None, log: Path or None = None, teardown_on_failure=True,
+                        fail_early=True):
         """
         Install modules layer by layer so that their dependencies are all met before being installed.
 
@@ -275,6 +311,7 @@ class Starter:
         # If all modules were successfully initialized
         return True
 
+
     def get_init_options(self):
         """
         Returns a list of tuples containing the name and init_options of modules
@@ -284,6 +321,7 @@ class Starter:
                  of modules satisfying the condition.
         """
         return [(module.name, module.init_options) for module in self.modules if module.init_options is not None]
+
 
     def set_init_options(self, options):
         """
@@ -393,11 +431,16 @@ def parse_starterfile(starterfile_stream: TextIO) -> Starter:
         tool = Tool.tool_schema.validate(_tool)
 
         dependencies = tool["depends_on"] if "depends_on" in _tool else None
+        mode = tool["mode"] if "mode" in _tool else "INSTALL"
+        alt = tool["alt"] if "alt" in _tool else None
 
         if type(dependencies) is str:
             dependencies = [dependencies]
 
-        tools.append(Tool(tool_name, dependencies, tool["scripts"]))
+        if alt is not None:
+            dependencies.append(alt)
+
+        tools.append(Tool(tool_name, dependencies, tool["scripts"], alt, mode))
 
     tool_dependencies = create_dependency_layers(tools)
 

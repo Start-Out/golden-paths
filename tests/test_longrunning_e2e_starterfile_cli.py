@@ -45,7 +45,7 @@ class TestStarterFileCLIEndToEnd(unittest.TestCase):
     def test_starterfile_up_init_options(self, mock_check, mock_init_repo):
         #####################
         # Define interactions
-        self.mock_console.input.side_effect = ["", "", ""]  # Simulate pressing enter to take default
+        self.mock_console.input.side_effect = ["n", "", "", ""]  # Simulate declining optional tool and pressing enter to take default
         mock_check.return_value = True  # The template is a valid Path
         mock_init_repo.return_value = self.created_repo_path  # Successfully initialized the repo
         #####################

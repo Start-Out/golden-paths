@@ -4,6 +4,7 @@ import unittest
 import pytest
 
 from startout.starterfile import Starter
+from startout.tool import InstallationMode
 
 
 class InitOption:
@@ -21,6 +22,8 @@ class Tool:
         self.mock_check = mock_check
         self.mock_destroy = mock_destroy
         self.mock_initialize = mock_initialize
+        self.alt = None
+        self.mode = InstallationMode.INSTALL
 
     def check(self):
         return self.mock_check  # mock uninitialized tool
