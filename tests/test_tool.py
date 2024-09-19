@@ -53,21 +53,13 @@ def test_init_no_scripts():
 
 @pytest.fixture
 def valid_portable_tool():
-    scripts = {
-        'install': 'exit 0',
-        'uninstall': 'exit 0',
-        'check': 'exit 0'
-    }
+    scripts = {"install": "exit 0", "uninstall": "exit 0", "check": "exit 0"}
     return Tool("test_tool", [], scripts)
 
 
 @pytest.fixture
 def valid_portable_tool_with_failing_scripts():
-    scripts = {
-        'install': 'exit 1',
-        'uninstall': 'exit 1',
-        'check': 'exit 1'
-    }
+    scripts = {"install": "exit 1", "uninstall": "exit 1", "check": "exit 1"}
     return Tool("failing_test_tool", [], scripts)
 
 
@@ -81,6 +73,7 @@ def test_check_failure(valid_portable_tool_with_failing_scripts):
 
 # Initialize function tests
 
+
 def test_initialize_success(valid_portable_tool):
     assert valid_portable_tool.initialize()
 
@@ -91,6 +84,7 @@ def test_initialize_failure(valid_portable_tool_with_failing_scripts):
 
 # Destroy function tests
 
+
 def test_destroy_success(valid_portable_tool):
     assert valid_portable_tool.destroy()
 
@@ -98,10 +92,13 @@ def test_destroy_success(valid_portable_tool):
 def test_destroy_failure(valid_portable_tool_with_failing_scripts):
     assert not valid_portable_tool_with_failing_scripts.destroy()
 
-@parameterized.expand([
-    (InstallationStatus.EXISTING_INSTALLATION, False),
-    (InstallationStatus.NEWLY_INSTALLED, True),
-    (InstallationStatus.EXISTING_INSTALLATION, False),
-])
+
+@parameterized.expand(
+    [
+        (InstallationStatus.EXISTING_INSTALLATION, False),
+        (InstallationStatus.NEWLY_INSTALLED, True),
+        (InstallationStatus.EXISTING_INSTALLATION, False),
+    ]
+)
 def test_rollback_util(installation_status: InstallationStatus, should_rollback: bool):
     assert tool.should_rollback(installation_status) == should_rollback

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "startout"
-version = "0.4.3"
+version = "0.5.1"
 description = "Draft version of the StartOut CLI'"
 authors = ["Trenton Yo <askstartout@gmail.com>", "Jake Gehrke <askstartout@gmail.com>"]
 readme = "README.md"

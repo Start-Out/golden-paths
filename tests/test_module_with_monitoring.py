@@ -12,8 +12,7 @@ from startout import module
 @pytest.fixture
 def finished_process():
     return subprocess.CompletedProcess(
-        args="command", returncode=0,
-        stdout="stdout_output", stderr="process.stderr"
+        args="command", returncode=0, stdout="stdout_output", stderr="process.stderr"
     )
 
 
@@ -22,7 +21,7 @@ def basic_module():
     name = "successfully_initialized_module"
     dest = "/path/to/dest"
     source = "source"
-    scripts = {'init': 'exit 0', 'destroy': 'exit 0'}
+    scripts = {"init": "exit 0", "destroy": "exit 0"}
     return module.Module(name, dest, source, scripts)
 
 
@@ -31,7 +30,7 @@ def script_module():
     name = "successfully_initialized_module"
     dest = "/path/to/dest"
     source = "exit 0"
-    scripts = {'init': 'exit 0', 'destroy': 'exit 0'}
+    scripts = {"init": "exit 0", "destroy": "exit 0"}
     return module.ScriptModule(name, dest, source, scripts)
 
 
@@ -40,7 +39,7 @@ def git_module():
     name = "successfully_initialized_module"
     dest = "/path/to/dest"
     source = "git"
-    scripts = {'init': 'exit 0', 'destroy': 'exit 0'}
+    scripts = {"init": "exit 0", "destroy": "exit 0"}
     return module.GitModule(name, dest, source, scripts)
 
 
@@ -57,23 +56,25 @@ def setup_module_mocks():
 def test_Module_initialize_with_monitor(basic_module):
     # Using extracted setup function
     subprocess_run_mocked, run_mocked, console_mocked, log_mocked = setup_module_mocks()
-    with mock.patch('shutil.which', return_value='/usr/bin/git'), \
-            mock.patch('startout.util.monitored_subprocess', new=subprocess_run_mocked), \
-            mock.patch.object(basic_module, 'run', new=run_mocked):
+    with mock.patch("shutil.which", return_value="/usr/bin/git"), mock.patch(
+        "startout.util.monitored_subprocess", new=subprocess_run_mocked
+    ), mock.patch.object(basic_module, "run", new=run_mocked):
         assert basic_module.initialize(console_mocked, log_mocked)
 
 
 def test_Module_destroy_with_monitor(basic_module):
     # Using extracted setup function
     subprocess_run_mocked, run_mocked, console_mocked, log_mocked = setup_module_mocks()
-    with mock.patch('shutil.which', return_value='/usr/bin/git'), \
-            mock.patch('startout.util.monitored_subprocess', new=subprocess_run_mocked), \
-            mock.patch.object(basic_module, 'run', new=run_mocked):
+    with mock.patch("shutil.which", return_value="/usr/bin/git"), mock.patch(
+        "startout.util.monitored_subprocess", new=subprocess_run_mocked
+    ), mock.patch.object(basic_module, "run", new=run_mocked):
         assert basic_module.destroy(console_mocked, log_mocked)
 
 
-@mock.patch('startout.module.monitored_subprocess')
-def test_Module_initialize_with_monitor(mock_monitored_subprocess, basic_module, finished_process):
+@mock.patch("startout.module.monitored_subprocess")
+def test_Module_initialize_with_monitor(
+    mock_monitored_subprocess, basic_module, finished_process
+):
     # Using extracted setup function
     subprocess_run_mocked, run_mocked, console_mocked, log_mocked = setup_module_mocks()
 
@@ -83,8 +84,10 @@ def test_Module_initialize_with_monitor(mock_monitored_subprocess, basic_module,
     assert basic_module.initialize(console_mocked, log_mocked)
 
 
-@mock.patch('startout.module.monitored_subprocess')
-def test_Module_destroy_with_monitor(mock_monitored_subprocess, basic_module, finished_process):
+@mock.patch("startout.module.monitored_subprocess")
+def test_Module_destroy_with_monitor(
+    mock_monitored_subprocess, basic_module, finished_process
+):
     # Using extracted setup function
     subprocess_run_mocked, run_mocked, console_mocked, log_mocked = setup_module_mocks()
 
@@ -94,8 +97,10 @@ def test_Module_destroy_with_monitor(mock_monitored_subprocess, basic_module, fi
     assert basic_module.destroy(console_mocked, log_mocked)
 
 
-@mock.patch('startout.module.monitored_subprocess')
-def test_ScriptModule_initialize_with_monitor(mock_monitored_subprocess, script_module, finished_process):
+@mock.patch("startout.module.monitored_subprocess")
+def test_ScriptModule_initialize_with_monitor(
+    mock_monitored_subprocess, script_module, finished_process
+):
     # Using extracted setup function
     subprocess_run_mocked, run_mocked, console_mocked, log_mocked = setup_module_mocks()
 
@@ -105,8 +110,10 @@ def test_ScriptModule_initialize_with_monitor(mock_monitored_subprocess, script_
     assert script_module.initialize(console_mocked, log_mocked)
 
 
-@mock.patch('startout.module.monitored_subprocess')
-def test_ScriptModule_destroy_with_monitor(mock_monitored_subprocess, script_module, finished_process):
+@mock.patch("startout.module.monitored_subprocess")
+def test_ScriptModule_destroy_with_monitor(
+    mock_monitored_subprocess, script_module, finished_process
+):
     # Using extracted setup function
     subprocess_run_mocked, run_mocked, console_mocked, log_mocked = setup_module_mocks()
 
@@ -116,8 +123,10 @@ def test_ScriptModule_destroy_with_monitor(mock_monitored_subprocess, script_mod
     assert script_module.destroy(console_mocked, log_mocked)
 
 
-@mock.patch('startout.module.monitored_subprocess')
-def test_GitModule_initialize_with_monitor(mock_monitored_subprocess, git_module, finished_process):
+@mock.patch("startout.module.monitored_subprocess")
+def test_GitModule_initialize_with_monitor(
+    mock_monitored_subprocess, git_module, finished_process
+):
     # Using extracted setup function
     subprocess_run_mocked, run_mocked, console_mocked, log_mocked = setup_module_mocks()
 
@@ -127,8 +136,10 @@ def test_GitModule_initialize_with_monitor(mock_monitored_subprocess, git_module
     assert git_module.initialize(console_mocked, log_mocked)
 
 
-@mock.patch('startout.module.monitored_subprocess')
-def test_GitModule_destroy_with_monitor(mock_monitored_subprocess, git_module, finished_process):
+@mock.patch("startout.module.monitored_subprocess")
+def test_GitModule_destroy_with_monitor(
+    mock_monitored_subprocess, git_module, finished_process
+):
     # Using extracted setup function
     subprocess_run_mocked, run_mocked, console_mocked, log_mocked = setup_module_mocks()
 

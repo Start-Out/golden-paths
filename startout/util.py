@@ -1,3 +1,4 @@
+import math
 import os
 import platform
 import re
@@ -26,6 +27,38 @@ class MonitorOutput:
         self.log_path = log_path
 
 
+SENSITIVE_PATTERNS = [
+    re.compile(r"API_KEY", re.IGNORECASE),
+    re.compile(r"TOKEN", re.IGNORECASE),
+    re.compile(r"PASSWORD", re.IGNORECASE),
+    re.compile(r"SECRET", re.IGNORECASE),
+    re.compile(r"PRIVATE_KEY", re.IGNORECASE),
+    re.compile(r"ACCESS_KEY", re.IGNORECASE),
+]
+
+HIGH_ENTROPY_THRESHOLD = 3.5
+
+
+def calculate_entropy(data):
+    if not data:
+        return 0
+    entropy = 0
+    for x in set(data):
+        p_x = data.count(x) / len(data)
+        entropy += -p_x * math.log2(p_x)
+    return entropy
+
+
+def is_potentially_sensitive_key_value(key, value):
+    # Check if key matches sensitive patterns
+    if any(pattern.search(key) for pattern in SENSITIVE_PATTERNS):
+        return True
+    # Check if value has high entropy
+    if calculate_entropy(value) > HIGH_ENTROPY_THRESHOLD:
+        return True
+    return False
+
+
 def validate_str_list(value):
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
@@ -33,7 +66,9 @@ def validate_str_list(value):
 def is_yaml_loadable_type(value):
     yaml_loadable_types = (str, int, float, bool, list, dict, type(None))
     if not isinstance(value, yaml_loadable_types):
-        raise SchemaError(f"Provided type {type(value).__name__} cannot be loaded by yaml.safe_load")
+        raise SchemaError(
+            f"Provided type {type(value).__name__} cannot be loaded by yaml.safe_load"
+        )
     return value
 
 
@@ -49,7 +84,7 @@ def bool_to_yn(bool_input: bool) -> str:
         - 'n' if bool_input is False
 
     """
-    lex = {True: 'y', False: 'n'}
+    lex = {True: "y", False: "n"}
 
     return lex[bool_input]
 
@@ -85,8 +120,12 @@ def string_to_bool(string_input: str) -> bool or None:
     :rtype: bool or None
     """
     lex = {
-        "yes": True, "y": True, "true": True,
-        "no": False, "n": False, "false": False,
+        "yes": True,
+        "y": True,
+        "true": True,
+        "no": False,
+        "n": False,
+        "false": False,
     }
 
     return lex.get(string_input.lower(), None)
@@ -125,8 +164,10 @@ def get_script(script: str, scripts_dict: Dict[str, str], name: str) -> str or N
                 _script = scripts_dict["linux"][script]
 
     if _script is None:
-        raise TypeError(f"Tool \"{name}\" does not have script '{script}' "
-                        f"in {list(scripts_dict.keys())}")
+        raise TypeError(
+            f"Tool \"{name}\" does not have script '{script}' "
+            f"in {list(scripts_dict.keys())}"
+        )
 
     return _script
 
@@ -167,19 +208,20 @@ def replace_env(string: str) -> str:
     >>> replace_env("Hello ${USERNAME}, your home directory is ${HOME}")
     'Hello John, your home directory is /home/john'
     """
-    pattern = re.compile(r'\$\{(.+?)}')
+    pattern = re.compile(r"\$\{(.+?)}")
     matches = pattern.findall(string)
 
     for match in matches:
         env_value = os.getenv(match)
         if env_value is not None:
-            string = string.replace(f'${{{match}}}', env_value)
+            string = string.replace(f"${{{match}}}", env_value)
 
     return string
 
 
-def run_script_with_env_substitution(script_str: str, verbose: bool = False,
-                                     monitor_output: MonitorOutput or None = None) -> Tuple[str, int]:
+def run_script_with_env_substitution(
+    script_str: str, verbose: bool = False, monitor_output: MonitorOutput or None = None
+) -> Tuple[str, int]:
     """
     Run a script with environment variable substitution. If the script fails to run as a shlex'd list, run it as a
     string instead.
@@ -200,18 +242,19 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False,
         # If shutil can't find the command or the script is multiline, run as shell
         if shutil.which(_script[0]) is None or multiline:
             if shutil.which(_script[0]) is None and verbose:
-                print(f"'{_script[0]}' is not installed. Trying script in shell.", file=sys.stderr)
+                print(
+                    f"'{_script[0]}' is not installed. Trying script in shell.",
+                    file=sys.stderr,
+                )
 
             _os = platform.system().lower()
             windows = _os in ["windows", "win32"]
 
             if windows:
-                windows_shell = "pwsh" if shutil.which("pwsh") is not None else "powershell"
-                cmd = [
-                    windows_shell,
-                    "-Command",
-                    substituted_script
-                ]
+                windows_shell = (
+                    "pwsh" if shutil.which("pwsh") is not None else "powershell"
+                )
+                cmd = [windows_shell, "-Command", substituted_script]
 
                 if monitor_output is None:
                     result = subprocess.run(cmd)
@@ -220,15 +263,12 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False,
                         command=cmd,
                         title=monitor_output.title,
                         subtitle=monitor_output.subtitle,
-                        console=monitor_output.console
+                        console=monitor_output.console,
                     )
             else:
                 if monitor_output is None:
                     result = subprocess.run(
-                        substituted_script,
-                        shell=True,
-                        text=True,
-                        capture_output=True
+                        substituted_script, shell=True, text=True, capture_output=True
                     )
                 else:
                     result = monitored_subprocess(
@@ -236,22 +276,18 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False,
                         title=monitor_output.title,
                         subtitle=monitor_output.subtitle,
                         console=monitor_output.console,
-                        shell=True
+                        shell=True,
                     )
         # Else, run the shlex'd cmd list
         else:
             if monitor_output is None:
-                result = subprocess.run(
-                    _script,
-                    text=True,
-                    capture_output=True
-                )
+                result = subprocess.run(_script, text=True, capture_output=True)
             else:
                 result = monitored_subprocess(
                     command=_script,
                     title=monitor_output.title,
                     subtitle=monitor_output.subtitle,
-                    console=monitor_output.console
+                    console=monitor_output.console,
                 )
     except subprocess.CalledProcessError as e:
         return f"{e.stderr.strip()}", e.returncode
@@ -264,11 +300,11 @@ def run_script_with_env_substitution(script_str: str, verbose: bool = False,
 
 # Code snippet used with permission @Hubro https://github.com/Textualize/rich/discussions/2885#discussioncomment-5382390
 def monitored_subprocess(
-        command: List[str] or str,
-        title: str or None,
-        subtitle: str or None,
-        console: Console,
-        shell: bool = False,
+    command: List[str] or str,
+    title: str or None,
+    subtitle: str or None,
+    console: Console,
+    shell: bool = False,
 ):
     """
     Run a subprocess while displaying the output in a temporary box with Rich
@@ -287,7 +323,7 @@ def monitored_subprocess(
         )
 
     with rich.live.Live(
-            get_renderable=process_panel, refresh_per_second=30, transient=True
+        get_renderable=process_panel, refresh_per_second=30, transient=True
     ):
         process = subprocess.Popen(
             command,
@@ -312,7 +348,11 @@ def monitored_subprocess(
             process.wait()
 
         # create a CompletedProcess instance
-        completed_process = subprocess.CompletedProcess(args=command, returncode=process.returncode,
-                                                        stdout=stdout_output, stderr=process.stderr)
+        completed_process = subprocess.CompletedProcess(
+            args=command,
+            returncode=process.returncode,
+            stdout=stdout_output,
+            stderr=process.stderr,
+        )
 
     return completed_process

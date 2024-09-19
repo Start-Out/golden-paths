@@ -3,7 +3,11 @@ from typing import List, Dict, Tuple
 
 from schema import Schema, And, Or, Optional
 
-from startout.util import run_script_with_env_substitution, get_script, validate_str_list
+from startout.util import (
+    run_script_with_env_substitution,
+    get_script,
+    validate_str_list,
+)
 
 
 class InstallationMode(Enum):
@@ -54,6 +58,7 @@ class Tool:
             Run the 'uninstall' script and print the output.
             Returns True if the return code is 0, else False.
     """
+
     tool_scripts_schema = Schema(
         Or(
             {
@@ -83,12 +88,18 @@ class Tool:
             Optional("depends_on"): Or(str, validate_str_list),
             Optional("mode"): Or("install", "optional", "as_alt"),
             Optional("alt"): str,
-            "scripts": tool_scripts_schema
+            "scripts": tool_scripts_schema,
         }
     )
 
-    def __init__(self, name: str, dependencies: List[str] or None, scripts: Dict[str, str or Dict[str, str]],
-                 alt: str or None = None, install_mode: str = "INSTALL"):
+    def __init__(
+        self,
+        name: str,
+        dependencies: List[str] or None,
+        scripts: Dict[str, str or Dict[str, str]],
+        alt: str or None = None,
+        install_mode: str = "INSTALL",
+    ):
         """
         Initializes a Tool with the given name, dependencies, and scripts.
 
