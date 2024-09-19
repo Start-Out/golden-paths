@@ -9,9 +9,9 @@ on:
       - reopened
     branches:
       - dev
-  push:
-    branches:
-      - dev
+    paths:
+      - '**.py'
+      
 defaults:
   run:
     shell: bash
