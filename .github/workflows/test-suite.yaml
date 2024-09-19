@@ -56,3 +56,15 @@ jobs:
         uses: coverallsapp/github-action@v2.2.3
         with:
           file: cov.lcov
+          parallel: true
+          flag-name: run-${{ matrix.os }}-${{ matrix.python-version }}
+
+  finish:
+    needs: test_suite
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close parallel build
+        uses: coverallsapp/github-action@v2.2.3
+        with:
+          parallel-finished: true
